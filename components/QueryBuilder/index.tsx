@@ -12,13 +12,14 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { api } from '@/config'
+import { IQueryResult } from '@/interfaces'
 import { useDataSourcesStore, useTabsStore } from '@/stores'
 import { exportToCsv, notifyError } from '@/utils'
-import QueryTable from '../QueryTable'
+import { AxiosError } from 'axios'
 import { Button } from '../ui/button'
-import ExecutionLog from './ExecutionLog'
-import QueryPlan from './QueryPlan'
+import ConfirmQueryDialog from './ConfirmQueryDialog'
 import SQLEditor from './SQLEditor'
+import TabContent from './TabContent'
 
 const tabs = [
 	{
@@ -33,21 +34,24 @@ const tabs = [
 		id: 'query-plan',
 		title: 'Query Plan',
 	},
-]
+] as const
+
+export type TabId = (typeof tabs)[number]['id']
 
 const QueryBuilder = () => {
 	const { contentById, activeTab } = useTabsStore()
-	const { currentDatabase, selectedId, datasources } = useDataSourcesStore()
-	const [currentTab, setCurrentTab] = useState('results')
+	const { datasources } = useDataSourcesStore()
+	const [currentTab, setCurrentTab] = useState<TabId>('results')
 	const [isLoading, setIsLoading] = useState(false)
-	const [result, setResult] = useState(null)
+	const [result, setResult] = useState<IQueryResult | null>(null)
+	const [isOpen, setIsOpen] = useState(false)
 
-	if (!activeTab) return
+	const toggleIsOpen = () => setIsOpen((prev) => !prev)
 
-	const handleRunQuery = async () => {
+	const handleRunQuery = async (forced: boolean = false) => {
 		setIsLoading(true)
 
-		if (!selectedId) {
+		if (!activeTab!.dataSourceId) {
 			toast.error('No data source selected', {
 				position: 'top-center',
 			})
@@ -55,16 +59,38 @@ const QueryBuilder = () => {
 		}
 
 		try {
-			const query = contentById[activeTab.id] || ''
+			const query = contentById[activeTab!.id] || ''
 			const { data } = await api.post(
-				`/data_sources/${selectedId}/databases/${currentDatabase}/query`,
+				`/data_sources/${activeTab!.dataSourceId}/databases/${activeTab!.database}/query`,
 				{
 					query,
+					dialect: datasources.find(
+						(ds) => ds.id === activeTab!.dataSourceId,
+					)?.type,
+					forced,
 				},
 			)
 
 			setResult(data.data)
+
+			if (data.data.rows.length === 0) {
+				setCurrentTab('execution-log')
+			}
 		} catch (error) {
+			if (error instanceof AxiosError) {
+				const errorMsg = error.response?.data?.message || ''
+				const errorCode = error.response?.data?.error || ''
+
+				if (
+					error.response?.status === 403 &&
+					(errorMsg.includes('DANGEROUS') ||
+						errorCode.includes('DANGEROUS'))
+				) {
+					setIsOpen(true)
+					return
+				}
+			}
+
 			notifyError(error, 'Failed to run query')
 		} finally {
 			setIsLoading(false)
@@ -76,7 +102,7 @@ const QueryBuilder = () => {
 			<div className='flex items-center justify-between p-4 border-b'>
 				<div className='flex items-center gap-4'>
 					<Button
-						onClick={handleRunQuery}
+						onClick={() => handleRunQuery()}
 						disabled={isLoading}>
 						<PlayIcon />
 						Execute
@@ -106,8 +132,9 @@ const QueryBuilder = () => {
 				<div className='flex items-center gap-4 text-sm'>
 					<div className='text-neutral-700'>Dialect:</div>
 					<div className='py-2 px-4 rounded bg-primary text-white uppercase font-mono'>
-						{datasources.find((ds) => ds.id === selectedId)?.type ||
-							'-'}
+						{datasources.find(
+							(ds) => ds.id === activeTab?.dataSourceId,
+						)?.type || '-'}
 					</div>
 				</div>
 			</div>
@@ -149,54 +176,53 @@ const QueryBuilder = () => {
 
 								<div className='flex items-center gap-2'>
 									<DatabaseIcon size={16} />
-									<div>{result.rows.length || 0} rows</div>
+									<div>
+										{result.rows.length ||
+											result.affectedRows ||
+											0}{' '}
+										rows
+									</div>
 								</div>
 
-								<div className='w-0.5 h-4 bg-neutral-300 dark:bg-neutral-700'></div>
+								{result?.rows.length > 0 && (
+									<>
+										<div className='w-0.5 h-4 bg-neutral-300 dark:bg-neutral-700'></div>
 
-								<div
-									className='flex items-center gap-2 cursor-pointer hover:text-primary transition-colors'
-									onClick={() => {
-										const timestamp = new Date()
-											.toISOString()
-											.replace(/[:.]/g, '-')
-										exportToCsv(
-											`query-result-${timestamp}`,
-											result.rows as Record<
-												string,
-												unknown
-											>[],
-										)
-									}}>
-									<ArrowDownToLineIcon size={16} />
-									<div>CSV</div>
-								</div>
+										<div
+											className='flex items-center gap-2 cursor-pointer hover:text-primary transition-colors'
+											onClick={() => {
+												const timestamp = new Date()
+													.toISOString()
+													.replace(/[:.]/g, '-')
+												exportToCsv(
+													`query-result-${timestamp}`,
+													result.rows as Record<
+														string,
+														unknown
+													>[],
+												)
+											}}>
+											<ArrowDownToLineIcon size={16} />
+											<div>CSV</div>
+										</div>
+									</>
+								)}
 							</div>
 						)}
 					</div>
 
-					{/* Khu vực Render Nội dung theo Tab */}
-					<div className='flex-1 overflow-hidden bg-white dark:bg-[#090b10] relative'>
-						{currentTab === 'results' && (
-							<QueryTable
-								columns={Object.keys(result.rows[0] || [])}
-								rows={result.rows || []}
-							/>
-						)}
-
-						{currentTab === 'execution-log' && (
-							<ExecutionLog
-								result={result}
-								query={contentById[activeTab.id]}
-							/>
-						)}
-
-						{currentTab === 'query-plan' && (
-							<QueryPlan query={contentById[activeTab.id]} />
-						)}
-					</div>
+					<TabContent
+						currentTab={currentTab}
+						result={result}
+					/>
 				</>
 			)}
+
+			<ConfirmQueryDialog
+				isOpen={isOpen}
+				onOpenChange={toggleIsOpen}
+				onRunQuery={handleRunQuery}
+			/>
 		</div>
 	)
 }

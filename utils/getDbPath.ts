@@ -2,7 +2,7 @@ import { useDataSourcesStore } from '@/stores'
 
 export const getDbPath = (path: string) => {
 	const state = useDataSourcesStore.getState()
-	const { currentDatabase, selectedId, currentTable } = state
+	const { database, dataSourceId, table } = state
 
-	return `/data_sources/${selectedId}/databases/${currentDatabase}/tables/${currentTable}/${path}`
+	return `/data_sources/${dataSourceId}/databases/${database}/tables/${table}/${path}`
 }

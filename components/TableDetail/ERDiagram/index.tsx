@@ -8,69 +8,80 @@ import {
 	useNodesState,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react' // Đã bỏ useRef
 
 import { api } from '@/config'
 import { IRelationship } from '@/interfaces'
-import { useDataSourcesStore } from '@/stores'
-import { getLayoutedElements, notifyError } from '@/utils'
+import { useDataSourcesStore, useTabsStore } from '@/stores'
+import { getDbPath, getLayoutedElements, notifyError } from '@/utils'
 import TableNode from './TableNode'
 
 const nodeTypes = { tableNode: TableNode }
 
 const ERDiagram = () => {
-	const { selectedId, currentDatabase, currentTable, schema } =
+	const { cachedSchema, cachedRelationships, setCachedRelationships } =
 		useDataSourcesStore()
+	const { activeTab } = useTabsStore()
 	const [nodes, setNodes, onNodesChange] = useNodesState([])
 	const [edges, setEdges, onEdgesChange] = useEdgesState([])
-	const [isLoading, setIsLoading] = useState(true)
-	const [relationships, setRelationships] = useState<IRelationship[]>([])
+	const [isLoading, setIsLoading] = useState(false)
 
-	// 1. Fetch Relationships API
+	const schemaCacheKey = `${activeTab!.dataSourceId}-${activeTab!.database}`
+	const schema = cachedSchema[schemaCacheKey] || {}
+
+	const relationshipsCacheKey = `${schemaCacheKey}-${activeTab!.table}`
+	const cachedRels = cachedRelationships[relationshipsCacheKey]
+
+	// 2. Fetch Relationships API (Đã bỏ fetchLock)
 	useEffect(() => {
-		;(async () => {
+		// Nếu đã có cache cho bảng này thì quay xe
+		if (cachedRels !== undefined) return
+
+		const fetchRels = async () => {
 			setIsLoading(true)
+
 			try {
-				const response = await api.get(
-					`/data_sources/${selectedId}/databases/${currentDatabase}/tables/${currentTable}/relationships`,
-				)
-				setRelationships(response.data.data)
+				const { data } = await api.get(getDbPath('relationships'))
+				// Lưu vào Store với Key chứa tên bảng
+				setCachedRelationships(relationshipsCacheKey, data.data || [])
 			} catch (error) {
 				notifyError(error, 'Failed to fetch relationships.')
 			} finally {
 				setIsLoading(false)
 			}
-		})()
-	}, [selectedId, currentDatabase, currentTable])
+		}
 
-	// 2. Map dữ liệu thật sang Nodes và Edges cho React Flow
+		fetchRels()
+	}, [activeTab, cachedRels, relationshipsCacheKey, setCachedRelationships])
+
+	// 3. Map dữ liệu sang Nodes và Edges
 	useEffect(() => {
-		// Đảm bảo đã có schema và biết user đang ở bảng nào
-		if (!schema || Object.keys(schema).length === 0 || !currentTable) return
+		if (
+			!schema ||
+			Object.keys(schema).length === 0 ||
+			!activeTab?.table ||
+			!cachedRels
+		)
+			return
 
-		// --- BƯỚC 1: TÌM CÁC BẢNG LIÊN QUAN ---
-		// Dùng Set để lưu tên các bảng cần hiển thị (tránh trùng lặp)
+		const currentTable = activeTab.table
 		const relevantTables = new Set<string>()
 
-		// Chắc chắn phải vẽ bảng hiện tại
 		relevantTables.add(currentTable)
 
-		// Lọc ra các dây nối CÓ DÍNH LÍU tới bảng hiện tại
-		const relevantRelationships = relationships.filter(
-			(rel) =>
+		// Dùng cachedRels thay vì state relationships cũ
+		const relevantRelationships = cachedRels.filter(
+			(rel: IRelationship) =>
 				rel.source_table === currentTable ||
 				rel.target_table === currentTable,
 		)
 
-		// Đưa các "bảng họ hàng" vào danh sách cần vẽ
-		relevantRelationships.forEach((rel) => {
+		relevantRelationships.forEach((rel: IRelationship) => {
 			relevantTables.add(rel.source_table)
 			relevantTables.add(rel.target_table)
 		})
 
-		// --- BƯỚC 2: MAP SANG NODES & EDGES CHỈ CHO CÁC BẢNG LIÊN QUAN ---
 		const dynamicNodes: Node[] = Object.entries(schema)
-			// Lọc: Chỉ lấy những bảng có tên nằm trong relevantTables
 			.filter(([tableName]) => relevantTables.has(tableName))
 			.map(([tableName, columns]) => ({
 				id: tableName,
@@ -82,28 +93,32 @@ const ERDiagram = () => {
 				},
 			}))
 
-		const dynamicEdges: Edge[] = relevantRelationships.map((rel) => ({
-			id: `e-${rel.source_table}.${rel.source_column}-${rel.target_table}.${rel.target_column}`,
-			source: rel.source_table,
-			sourceHandle: rel.source_column,
-			target: rel.target_table,
-			targetHandle: rel.target_column,
-			animated: true,
-			type: 'smoothstep',
-			style: { stroke: '#3b82f6', strokeWidth: 1.5 },
-		}))
+		const dynamicEdges: Edge[] = relevantRelationships.map(
+			(rel: IRelationship) => ({
+				id: `e-${rel.source_table}.${rel.source_column}-${rel.target_table}.${rel.target_column}`,
+				source: rel.source_table,
+				sourceHandle: rel.source_column,
+				target: rel.target_table,
+				targetHandle: rel.target_column,
+				animated: true,
+				type: 'smoothstep',
+				style: { stroke: '#3b82f6', strokeWidth: 1.5 },
+			}),
+		)
 
-		// Chạy thuật toán tự động sắp xếp
 		const { nodes: layoutedNodes, edges: layoutedEdges } =
 			getLayoutedElements(dynamicNodes, dynamicEdges, 'LR')
 
-		setNodes(layoutedNodes)
-		setEdges(layoutedEdges)
+		setNodes(layoutedNodes as never[])
+		setEdges(layoutedEdges as never[])
+	}, [schema, cachedRels, activeTab?.table, setNodes, setEdges])
 
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [schema, relationships, currentTable])
-
-	if (isLoading) return <div>Calculating schema</div>
+	if (isLoading && !cachedRels)
+		return (
+			<div className='w-full h-full min-h-[calc(100vh-100px)] flex items-center justify-center text-neutral-500'>
+				Calculating schema...
+			</div>
+		)
 
 	return (
 		<div className='w-full h-full min-h-[calc(100vh-100px)] bg-slate-50 dark:bg-[#090b10] transition-colors duration-300'>

@@ -5,6 +5,7 @@ import { Dispatch, SetStateAction, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { IColumn } from '@/interfaces'
 import { getTypeInfo } from '@/utils'
+import EditableCell from './EditableCell'
 
 interface RowProps {
 	i: number
@@ -41,7 +42,7 @@ const Row = ({
 					<div
 						className={clsx(
 							'flex items-center gap-4 transition-all duration-300',
-							isHover ?
+							isHover || isSelected ?
 								'opacity-100 visible'
 							:	'opacity-0 invisible',
 						)}>
@@ -86,11 +87,20 @@ const Row = ({
 							'border p-2 select-none font-mono',
 							color,
 						)}>
-						{row[col.column_name] === null ?
-							<span className='italic text-neutral-400'>
-								[NULL]
-							</span>
-						:	String(row[col.column_name])}
+						<EditableCell
+							initialValue={row[col.column_name]}
+							colName={col.column_name}
+							dataType={col.data_type}
+							onSave={(colName, newValue) => {
+								// TODO: Xử lý lưu dữ liệu ở đây
+								console.log(
+									'Cần update:',
+									colName,
+									'thành',
+									newValue,
+								)
+							}}
+						/>
 					</td>
 				)
 			})}

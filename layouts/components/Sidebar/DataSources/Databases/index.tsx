@@ -1,5 +1,5 @@
 import { DatabaseIcon, DatabaseZapIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
 	Accordion,
@@ -13,83 +13,62 @@ import { notifyError } from '@/utils'
 import Tables from './Tables'
 
 const Databases = () => {
-	const {
-		databases,
-		setDatabases,
-		selectedId,
-		isDatabaseLoading,
-		setIsDatabaseLoading,
-		currentDatabase,
-		setCurrentDatabase,
-		setSchema,
-		setIsSchemaLoading,
-	} = useDataSourcesStore()
+	const [isLoading, setIsLoading] = useState(false)
+	const fetchLock = useRef<string | null>(null)
+
+	const { cachedDatabases, setCachedDatabases, dataSourceId, setDatabase } =
+		useDataSourcesStore()
+
+	const hasCachedData = !!(dataSourceId && cachedDatabases[dataSourceId])
 
 	useEffect(() => {
 		;(async () => {
-			if (!selectedId) return
+			if (!dataSourceId || hasCachedData) return
 
-			setIsDatabaseLoading(true)
+			if (fetchLock.current === dataSourceId) return
 
-			try {
-				const { data } = await api.get(
-					`/data_sources/${selectedId}/databases`,
-				)
-				setDatabases(data.data)
-			} catch (error) {
-				notifyError(error, 'Failed to fetch databases.')
-			} finally {
-				setIsDatabaseLoading(false)
+			const fetchDatabases = async () => {
+				setIsLoading(true)
+				fetchLock.current = dataSourceId // Đóng khóa lại
+
+				try {
+					const { data } = await api.get(
+						`/data_sources/${dataSourceId}/databases`,
+					)
+					setCachedDatabases(dataSourceId, data.data)
+				} catch (error) {
+					notifyError(error, 'Failed to fetch databases.')
+					fetchLock.current = null // Nếu lỗi thì mở khóa ra để user có thể thử lại
+				} finally {
+					setIsLoading(false)
+				}
 			}
+
+			fetchDatabases()
 		})()
-
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [selectedId])
-
-	useEffect(() => {
-		if (!selectedId || !currentDatabase) return
-
-		setIsSchemaLoading(true)
-		;(async () => {
-			try {
-				const { data } = await api.get(
-					`/data_sources/${selectedId}/databases/${currentDatabase}/schema`,
-				)
-
-				setSchema(data.data)
-			} catch (error) {
-				notifyError(error, 'Failed to fetch schema.')
-			} finally {
-				setIsSchemaLoading(false)
-			}
-		})()
-
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [currentDatabase, selectedId])
+	}, [dataSourceId, hasCachedData])
 
 	return (
 		<AccordionContent>
-			{isDatabaseLoading ?
+			{isLoading ?
 				<div className='text-center text-gray-500'>
 					Loading databases...
 				</div>
 			:	<Accordion
 					type='single'
 					collapsible>
-					{databases.length === 0 ?
+					{cachedDatabases[dataSourceId!]?.length === 0 ?
 						<div className='text-center text-gray-500'>
 							No databases found.
 						</div>
-					:	databases.map((database) => (
+					:	cachedDatabases[dataSourceId!]?.map((database) => (
 							<AccordionItem
 								value={database}
 								key={database}>
 								<AccordionTrigger
-									onClick={() =>
-										setCurrentDatabase(database)
-									}>
+									onClick={() => setDatabase(database)}>
 									<div className='flex items-center gap-4 font-mono text-lg font-medium'>
-										{database === currentDatabase ?
+										{database === database ?
 											<DatabaseZapIcon />
 										:	<DatabaseIcon />}
 										{database}

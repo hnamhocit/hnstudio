@@ -15,8 +15,7 @@ type TabsState = {
 	contentById: ContentById
 	commitContent: (id: string, content: string) => void
 
-	queryLength: number
-	setQueryLength: (length: number) => void
+	removeTab: (id: string) => void
 }
 
 export const useTabsStore = create<TabsState>()(
@@ -34,8 +33,36 @@ export const useTabsStore = create<TabsState>()(
 					contentById: { ...s.contentById, [id]: content },
 				})),
 
-			queryLength: 0,
-			setQueryLength: (length) => set({ queryLength: length }),
+			removeTab: (id) =>
+				set((state) => {
+					const closedTabIndex = state.tabs.findIndex(
+						(tab) => tab.id === id,
+					)
+					const newTabs = state.tabs.filter((tab) => tab.id !== id)
+
+					let newActiveTab = state.activeTab
+
+					// Nếu tab đang mở bị đóng
+					if (state.activeTab?.id === id) {
+						if (newTabs.length > 0) {
+							// Tính toán tab kế tiếp để focus
+							const nextActiveIndex =
+								closedTabIndex === newTabs.length ?
+									closedTabIndex - 1
+								:	closedTabIndex
+							newActiveTab = newTabs[nextActiveIndex]
+						} else {
+							// Trả về null chắc chắn 100% ăn
+							newActiveTab = null
+						}
+					}
+
+					// Cập nhật CÙNG LÚC cả tabs và activeTab
+					return {
+						tabs: newTabs,
+						activeTab: newActiveTab,
+					}
+				}),
 		}),
 		{
 			name: 'tabs-store',
@@ -44,7 +71,6 @@ export const useTabsStore = create<TabsState>()(
 				tabs: s.tabs,
 				activeTab: s.activeTab,
 				contentById: s.contentById,
-				queryLength: s.queryLength,
 			}),
 		},
 	),

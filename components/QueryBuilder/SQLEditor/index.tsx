@@ -5,9 +5,14 @@ import CodeMirror from '@uiw/react-codemirror'
 import { useDataSourcesStore, useTabsStore } from '@/stores'
 
 export default function SQLEditor() {
-	const { schema } = useDataSourcesStore()
+	const { cachedSchema } = useDataSourcesStore()
 	const { activeTab, commitContent, contentById } = useTabsStore()
 	const value = contentById[activeTab!.id] || ''
+
+	const cacheKey = `${activeTab!.dataSourceId}-${activeTab!.database}`
+	console.log({ cacheKey })
+	const schema = cachedSchema[cacheKey] || {}
+	console.log({ schema })
 
 	const derivedSchema = Object.entries(schema).reduce(
 		(acc, [table, columns]) => {
@@ -20,7 +25,7 @@ export default function SQLEditor() {
 	return (
 		<CodeMirror
 			value={value}
-			className='text-xl'
+			className='text-xl max-h-120 overflow-y-auto'
 			theme={themes.tokyoNight}
 			extensions={[
 				sql({ schema: derivedSchema, upperCaseKeywords: true }),

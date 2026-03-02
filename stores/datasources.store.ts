@@ -1,32 +1,35 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { IColumn, IDataSource } from '@/interfaces'
+import { IColumn, IDataSource, IRelationship } from '@/interfaces'
+
+type Schema = Record<string, IColumn[]>
+
+// database <dataSourceId, string[]>
+// schema <dataSourceId-databaseId, <table, columns[]>>
+// relationships <dataSourceId-databaseId-table, IRelationship[]>
 
 interface DataSourcesStore {
 	datasources: IDataSource[]
 	setDatasources: (datasources: IDataSource[]) => void
 
-	selectedId: string | null
-	setSelectedId: (id: string | null) => void
+	dataSourceId: string | null
+	setDataSourceId: (id: string | null) => void
 
-	databases: string[]
-	setDatabases: (databases: string[]) => void
+	cachedDatabases: Record<string, string[]>
+	setCachedDatabases: (dataSourceId: string, databases: string[]) => void
 
-	isDatabaseLoading: boolean
-	setIsDatabaseLoading: (isLoading: boolean) => void
+	cachedSchema: Record<string, Schema>
+	setCachedSchema: (id: string, schema: Schema) => void
 
-	schema: Record<string, IColumn[]>
-	setSchema: (schema: Record<string, IColumn[]>) => void
+	database: string | null
+	setDatabase: (db: string | null) => void
 
-	isSchemaLoading: boolean
-	setIsSchemaLoading: (isLoading: boolean) => void
+	table: string | null
+	setTable: (table: string | null) => void
 
-	currentDatabase: string | null
-	setCurrentDatabase: (db: string | null) => void
-
-	currentTable: string | null
-	setCurrentTable: (table: string | null) => void
+	cachedRelationships: Record<string, IRelationship[]>
+	setCachedRelationships: (id: string, relationships: IRelationship[]) => void
 }
 
 export const useDataSourcesStore = create<DataSourcesStore>()(
@@ -35,36 +38,49 @@ export const useDataSourcesStore = create<DataSourcesStore>()(
 			datasources: [],
 			setDatasources: (datasources) => set({ datasources }),
 
-			selectedId: null,
-			setSelectedId: (selectedId) => set({ selectedId }),
+			dataSourceId: null,
+			setDataSourceId: (dataSourceId) => set({ dataSourceId }),
 
-			databases: [],
-			setDatabases: (databases) => set({ databases }),
+			cachedDatabases: {},
+			setCachedDatabases: (dataSourceId, databases) =>
+				set((state) => ({
+					cachedDatabases: {
+						...state.cachedDatabases,
+						[dataSourceId]: databases,
+					},
+				})),
 
-			isDatabaseLoading: false,
-			setIsDatabaseLoading: (isDatabaseLoading) =>
-				set({ isDatabaseLoading }),
+			cachedSchema: {},
+			setCachedSchema: (id, schema) =>
+				set((state) => ({
+					cachedSchema: {
+						...state.cachedSchema,
+						[id]: schema,
+					},
+				})),
 
-			schema: {},
-			setSchema: (schema) => set({ schema }),
+			database: null,
+			setDatabase: (database) => set({ database }),
 
-			isSchemaLoading: false,
-			setIsSchemaLoading: (isSchemaLoading) => set({ isSchemaLoading }),
+			table: null,
+			setTable: (table) => set({ table }),
 
-			currentDatabase: null,
-			setCurrentDatabase: (currentDatabase) => set({ currentDatabase }),
-
-			currentTable: null,
-			setCurrentTable: (currentTable) => set({ currentTable }),
+			cachedRelationships: {},
+			setCachedRelationships: (id, relationships) =>
+				set((state) => ({
+					cachedRelationships: {
+						...state.cachedRelationships,
+						[id]: relationships,
+					},
+				})),
 		}),
 		{
 			name: 'datasources-store',
 			storage: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
-				selectedId: state.selectedId,
-				currentDatabase: state.currentDatabase,
-				currentTable: state.currentTable,
-				schema: state.schema,
+				dataSourceId: state.dataSourceId,
+				database: state.database,
+				table: state.table,
 			}),
 		},
 	),

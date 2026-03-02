@@ -1,5 +1,6 @@
 export * from './exportToCsv'
 export * from './formatDataSize'
+export * from './generateInsertSqlFromCsv'
 export * from './getDbPath'
 export * from './getLayoutedElements'
 export * from './notifyError'

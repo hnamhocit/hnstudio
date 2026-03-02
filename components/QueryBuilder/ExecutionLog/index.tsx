@@ -1,7 +1,9 @@
 import { CheckCircle2Icon, TerminalIcon } from 'lucide-react'
 
+import { IQueryResult } from '@/interfaces'
+
 interface ExecutionLogProps {
-	result: any
+	result: IQueryResult
 	query: string
 }
 
@@ -45,7 +47,7 @@ const ExecutionLog = ({ result, query }: ExecutionLogProps) => {
 					<span className='text-neutral-400'>
 						Rows affected / returned:{' '}
 						<span className='text-yellow-400'>
-							{result.rows?.length || 0}
+							{result.rows?.length || result.affectedRows || 0}
 						</span>
 					</span>
 				</div>

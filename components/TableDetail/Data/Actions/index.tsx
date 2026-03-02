@@ -1,33 +1,17 @@
-import {
-	CopyPlusIcon,
-	FileUpIcon,
-	PenIcon,
-	PlayIcon,
-	PlusIcon,
-	RotateCcwIcon,
-	SettingsIcon,
-	Trash2Icon,
-} from 'lucide-react'
+import { CopyPlusIcon, PenIcon, PlayIcon, PlusIcon } from 'lucide-react'
 import { Dispatch, SetStateAction, useState } from 'react'
 import { toast } from 'sonner'
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { api } from '@/config'
 import { IColumn } from '@/interfaces'
 import { useDataSourcesStore } from '@/stores'
 import { notifyError } from '@/utils'
+import DeleteButton from './DeleteButton'
 import RecordModal from './RecordModal'
+import RefreshButton from './RefreshButton'
+import SettingsButton from './SettingsButton'
+import UploadCsvButton from './UploadCsvButton'
 
 interface ActionsProps {
 	keys: (string | number)[]
@@ -46,7 +30,7 @@ const Actions = ({
 }: ActionsProps) => {
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [isOpen, setIsOpen] = useState(false)
-	const { currentDatabase, currentTable, selectedId } = useDataSourcesStore()
+	const { dataSourceId, table, database } = useDataSourcesStore()
 
 	const toggleIsOpen = () => setIsOpen((prev) => !prev)
 
@@ -61,10 +45,10 @@ const Actions = ({
 			const formattedKeys = selectedKeys
 				.map((k) => (typeof k === 'string' ? `'${k}'` : k))
 				.join(', ')
-			const sql = `DELETE FROM ${currentTable} WHERE ${primaryColumnName} IN (${formattedKeys});`
+			const sql = `DELETE FROM ${table} WHERE ${primaryColumnName} IN (${formattedKeys});`
 
 			await api.post(
-				`/data_sources/${selectedId}/databases/${currentDatabase}/query`,
+				`/data_sources/${dataSourceId}/databases/${database}/query`,
 				{ query: sql },
 			)
 
@@ -110,63 +94,19 @@ const Actions = ({
 					<CopyPlusIcon />
 				</Button>
 
-				<AlertDialog>
-					<AlertDialogTrigger asChild>
-						<Button
-							disabled={isDeleting}
-							size='icon'
-							variant='ghost'>
-							<Trash2Icon />
-						</Button>
-					</AlertDialogTrigger>
-
-					<AlertDialogContent>
-						<AlertDialogHeader>
-							<AlertDialogTitle>
-								Are you sure you want to delete?
-							</AlertDialogTitle>
-							<AlertDialogDescription>
-								This action cannot be undone. There will be{' '}
-								<strong className='text-foreground'>
-									{keys.length} row(s)
-								</strong>{' '}
-								deleted and permanently removed from the
-								Database.
-							</AlertDialogDescription>
-						</AlertDialogHeader>
-
-						<AlertDialogFooter>
-							<AlertDialogCancel>Cancel</AlertDialogCancel>
-
-							<AlertDialogAction
-								onClick={handleDelete}
-								className='bg-red-600 hover:bg-red-700 text-white'>
-								Confirm
-							</AlertDialogAction>
-						</AlertDialogFooter>
-					</AlertDialogContent>
-				</AlertDialog>
+				<DeleteButton
+					keysLength={keys.length}
+					onClick={handleDelete}
+					isDeleting={isDeleting}
+				/>
 
 				<div className='w-0.5 h-8 bg-black'></div>
 
-				<Button
-					onClick={refreshData}
-					size='icon'
-					variant='ghost'>
-					<RotateCcwIcon />
-				</Button>
+				<RefreshButton onClick={refreshData} />
 
-				<Button
-					size='icon'
-					variant='ghost'>
-					<FileUpIcon />
-				</Button>
+				<UploadCsvButton />
 
-				<Button
-					size='icon'
-					variant='ghost'>
-					<SettingsIcon />
-				</Button>
+				<SettingsButton />
 			</div>
 
 			<Button>

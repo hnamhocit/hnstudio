@@ -1,10 +1,13 @@
-import { useDataSourcesStore } from '@/stores'
 import { Key, List, MoreVertical } from 'lucide-react'
 
-const TableStructure = () => {
-	const { schema, currentTable } = useDataSourcesStore()
+import { useDataSourcesStore, useTabsStore } from '@/stores'
 
-	const columns = schema[currentTable || ''] || []
+const TableStructure = () => {
+	const { cachedSchema } = useDataSourcesStore()
+	const { activeTab } = useTabsStore()
+
+	const cachedKey = `${activeTab?.dataSourceId}-${activeTab?.database}`
+	const columns = cachedSchema[cachedKey]?.[activeTab?.table || ''] || []
 
 	return (
 		<div className='w-full p-6 min-h-screen transition-colors duration-300'>

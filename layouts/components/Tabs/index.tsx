@@ -1,30 +1,32 @@
 'use client'
 
 import { ITab } from '@/interfaces'
-import { useTabsStore } from '@/stores'
+import { useDataSourcesStore, useTabsStore } from '@/stores'
 import Tab from './Tab'
 
 const Tabs = () => {
 	const {
 		tabs,
 		setTabs,
-		queryLength,
-		setQueryLength,
+
 		setActiveTab,
 		commitContent,
 	} = useTabsStore()
+	const { dataSourceId, database, table } = useDataSourcesStore()
 
 	const handleNewQueryTab = () => {
 		const id = Date.now().toString()
 		const newTab: ITab = {
 			id,
-			title: `Query ${queryLength}`,
+			title: `Query ${tabs.length + 1}`,
 			type: 'query',
+			dataSourceId,
+			database,
+			table,
 		}
 		commitContent(id, '\n\n\n\n\n\n\n\n\n\n\n')
 
 		setTabs([...tabs, newTab])
-		setQueryLength(queryLength + 1)
 		setActiveTab(newTab)
 	}
 

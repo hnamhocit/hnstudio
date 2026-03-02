@@ -9,7 +9,7 @@ import {
 	ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { ITab } from '@/interfaces'
-import { useDataSourcesStore, useTabsStore } from '@/stores'
+import { useTabsStore } from '@/stores'
 import { menuItems } from './menuItems'
 
 interface TabProps {
@@ -19,66 +19,32 @@ interface TabProps {
 
 const Tab: FC<TabProps> = (props) => {
 	const { tab, index } = props
-	const { id, title, type } = tab
-	const {
-		tabs,
-		setTabs,
-		queryLength,
-		setQueryLength,
-		activeTab,
-		setActiveTab,
-	} = useTabsStore()
-	const { setCurrentTable, setCurrentDatabase } = useDataSourcesStore()
-
-	const handleRemoveTab = () => {
-		const newTabs = tabs.filter((tab) => tab.id !== id)
-
-		if (type === 'query') {
-			setQueryLength(queryLength - 1)
-		}
-
-		setTabs(newTabs)
-	}
+	const { id, title } = tab
+	const { tabs, setTabs, activeTab, setActiveTab, removeTab } = useTabsStore()
 
 	const handleContextMenuAction = (actionId: string) => {
 		switch (actionId) {
 			case 'close':
-				handleRemoveTab()
+				removeTab(id)
 				break
 			case 'close-others':
-				setTabs(tabs.filter((tab) => tab.id === id))
+				setTabs([tab])
+				setActiveTab(tab)
 				break
 			case 'close-right':
-				setTabs(
-					tabs.filter((_, index) => {
-						const activeIndex = tabs.findIndex((t) => t.id === id)
-						return index <= activeIndex
-					}),
-				)
+				setTabs(tabs.slice(0, index + 1))
+				setActiveTab(tab)
 				break
 			case 'close-left':
-				setTabs(
-					tabs.filter((_, index) => {
-						const activeIndex = tabs.findIndex((t) => t.id === id)
-						return index >= activeIndex
-					}),
-				)
+				setTabs(tabs.slice(index))
+				setActiveTab(tab)
 				break
 			case 'close-all':
+				setActiveTab(null)
 				setTabs([])
 				break
 			default:
 				break
-		}
-	}
-
-	const handleClickTab = () => {
-		setActiveTab(tab)
-
-		if (type === 'table') {
-			const database = id.replace(`-${title}`, '')
-			setCurrentTable(title)
-			setCurrentDatabase(database)
 		}
 	}
 
@@ -92,13 +58,16 @@ const Tab: FC<TabProps> = (props) => {
 							'text-primary border-primary'
 						:	'text-gray-400',
 					)}
-					onClick={handleClickTab}>
+					onClick={() => setActiveTab(tab)}>
 					<div className='font-mono font-medium'>{title}</div>
 
 					<button
 						title='Close'
 						className='block cursor-pointer'
-						onClick={handleRemoveTab}>
+						onClick={(e) => {
+							e.stopPropagation()
+							removeTab(id)
+						}}>
 						<XIcon size={20} />
 					</button>
 				</div>

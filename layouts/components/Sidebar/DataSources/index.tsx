@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { supportDataSources } from '@/constants/supportDataSources'
 import { dataSourcesService } from '@/services'
 import { useDataSourcesStore, useUserStore } from '@/stores'
+import { notifyError } from '@/utils'
 import {
 	Accordion,
 	AccordionItem,
@@ -15,7 +16,8 @@ import {
 import Databases from './Databases'
 
 const DataSources = () => {
-	const { datasources, setDatasources, setSelectedId } = useDataSourcesStore()
+	const { datasources, setDatasources, setDataSourceId } =
+		useDataSourcesStore()
 	const { user } = useUserStore()
 
 	useEffect(() => {
@@ -34,16 +36,10 @@ const DataSources = () => {
 				if (data) {
 					setDatasources(data)
 				}
-
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			} catch (error) {
-				toast.error('Failed to fetch data sources', {
-					position: 'top-center',
-				})
+				notifyError(error, 'Failed to fetch data sources.')
 			}
 		})()
-
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [user])
 
 	return (
@@ -60,7 +56,8 @@ const DataSources = () => {
 						className='px-4'
 						value={ds.id}
 						key={ds.id}>
-						<AccordionTrigger onClick={() => setSelectedId(ds.id)}>
+						<AccordionTrigger
+							onClick={() => setDataSourceId(ds.id)}>
 							<div className='flex items-center gap-4'>
 								<Image
 									src={

@@ -35,7 +35,7 @@ const RecordModal = ({
 }: RecordModalProps) => {
 	const isUpdate = !!row
 	const [formData, setFormData] = useState<Record<string, unknown>>({})
-	const { currentTable } = useDataSourcesStore()
+	const { table } = useDataSourcesStore()
 
 	useEffect(() => {
 		if (isOpen) {
@@ -95,7 +95,7 @@ const RecordModal = ({
 				pkColDef?.data_type || 'int',
 			)
 
-			generatedSql = `UPDATE ${currentTable} \nSET ${setClauses.join(', \n    ')} \nWHERE ${primaryKeyColumn} = ${pkValue};`
+			generatedSql = `UPDATE ${table} \nSET ${setClauses.join(', \n    ')} \nWHERE ${primaryKeyColumn} = ${pkValue};`
 		} else {
 			const activeCols = columns.filter(
 				(col) => formData[col.column_name] !== '',
@@ -107,7 +107,7 @@ const RecordModal = ({
 				)
 				.join(', ')
 
-			generatedSql = `INSERT INTO ${currentTable} (${colNames}) \nVALUES (${values});`
+			generatedSql = `INSERT INTO ${table} (${colNames}) \nVALUES (${values});`
 		}
 
 		onSubmit(generatedSql)
@@ -122,8 +122,8 @@ const RecordModal = ({
 				<DialogHeader>
 					<DialogTitle>
 						{isUpdate ?
-							`Edit row in ${currentTable}`
-						:	`Insert new row into ${currentTable}`}
+							`Edit row in ${table}`
+						:	`Insert new row into ${table}`}
 					</DialogTitle>
 					<DialogDescription>
 						{isUpdate ?
@@ -146,7 +146,7 @@ const RecordModal = ({
 								className='grid grid-cols-4 items-start gap-4'>
 								<Label
 									htmlFor={col.column_name}
-									className='text-right break-words mt-3 flex items-center justify-end gap-1'>
+									className='text-right wrap-pbreak-words mt-3 flex items-center justify-end gap-1'>
 									{col.column_name}
 									{isPk && (
 										<span className='text-amber-500'>

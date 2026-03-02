@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import DatabaseTable from '@/components/DatabaseTable'
 import { api } from '@/config'
+import { IQueryResult } from '@/interfaces'
 import { useTabsStore } from '@/stores'
 import { useDataSourcesStore } from '@/stores/datasources.store'
 import { formatDataSize, notifyError } from '@/utils'
@@ -10,25 +11,26 @@ import Actions from './Actions'
 
 const Data = () => {
 	const { activeTab } = useTabsStore()
-	const { currentDatabase, currentTable, schema, selectedId } =
-		useDataSourcesStore()
-	const [result, setResult] = useState(null)
+	const { cachedSchema, setCachedSchema } = useDataSourcesStore()
+	const [result, setResult] = useState<IQueryResult | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 	const [keys, setKeys] = useState<(string | number)[]>([])
 
-	const columns = schema[currentTable || ''] || []
+	const cachedKey = `${activeTab?.dataSourceId}-${activeTab?.database}`
+	const hasCachedSchema = !!cachedSchema[cachedKey]
+
+	const columns = cachedSchema[cachedKey]?.[activeTab?.table || ''] || []
 	const primaryColumnName =
 		columns.find((col) => col.is_primary)?.column_name || 'id'
 
 	const refreshData = useCallback(async () => {
-		if (!activeTab || !currentDatabase || !currentTable || !selectedId)
-			return
+		if (!activeTab || !hasCachedSchema) return
 
 		setIsLoading(true)
 
 		try {
 			const { data } = await api.get(
-				`/data_sources/${selectedId}/databases/${currentDatabase}/tables/${currentTable}/preview?page=1`,
+				`/data_sources/${activeTab.dataSourceId}/databases/${activeTab.database}/tables/${activeTab.table}/preview`,
 			)
 
 			setResult(data.data)
@@ -37,11 +39,31 @@ const Data = () => {
 		} finally {
 			setIsLoading(false)
 		}
-	}, [activeTab, currentDatabase, currentTable, selectedId])
+	}, [activeTab, hasCachedSchema])
 
 	useEffect(() => {
 		refreshData()
 	}, [refreshData])
+
+	useEffect(() => {
+		const getSchema = async () => {
+			if (!activeTab) return
+
+			try {
+				const { data } = await api.get(
+					`/data_sources/${activeTab.dataSourceId}/databases/${activeTab.database}/schema`,
+				)
+
+				setCachedSchema(cachedKey, data.data)
+			} catch (error) {
+				notifyError(error, 'Failed to fetch schema.')
+			}
+		}
+
+		if (!hasCachedSchema) {
+			getSchema()
+		}
+	}, [activeTab, hasCachedSchema, cachedKey])
 
 	return (
 		<>

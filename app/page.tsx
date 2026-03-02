@@ -8,11 +8,11 @@ export default function Home() {
 	const { activeTab } = useTabsStore()
 
 	return (
-		activeTab &&
-		(activeTab.type === 'query' ? <QueryBuilder />
-		: activeTab.type === 'table' ? <TableDetail />
-		: <div className='h-full flex items-center justify-center text-gray-500'>
+		!activeTab ?
+			<div className='h-full flex items-center justify-center text-gray-500'>
 				No active tab. Click &quot;New&quot; to create a query tab.
-			</div>)
+			</div>
+		: activeTab.type === 'query' ? <QueryBuilder />
+		: activeTab.type === 'table' && <TableDetail />
 	)
 }
