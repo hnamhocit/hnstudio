@@ -1,8 +1,10 @@
 import { ActivityIcon, AlertCircleIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { api } from '@/config'
-import { getTablePath, notifyError } from '@/utils'
+import { IQueryResult } from '@/interfaces'
+import { dataSourcesService } from '@/services'
+import { useTabsStore } from '@/stores'
+import { notifyError } from '@/utils'
 import JsonViewer from './JsonViewer'
 
 interface QueryPlanProps {
@@ -10,21 +12,26 @@ interface QueryPlanProps {
 }
 
 const QueryPlan = ({ query }: QueryPlanProps) => {
-	const [planData, setPlanData] = useState<any>(null)
+	const [planData, setPlanData] = useState<IQueryResult | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
+	const { activeTab } = useTabsStore()
 
 	useEffect(() => {
 		;(async () => {
+			if (!activeTab || !activeTab.dataSourceId) {
+				setPlanData(null)
+				return
+			}
+
 			setIsLoading(true)
-			// Reset lại plan cũ mỗi khi query thay đổi
 			setPlanData(null)
 
 			try {
-				const { data } = await api.post(getTablePath(`query/plan`), {
+				const { data } = await dataSourcesService.queryPlan(
+					activeTab!.dataSourceId!,
 					query,
-				})
+				)
 
-				// data.data bây giờ chính là cục JSON Plan hoặc Null (từ Controller mới)
 				setPlanData(data.data)
 			} catch (error) {
 				notifyError(error, 'Failed to fetch query plan.')
@@ -32,7 +39,7 @@ const QueryPlan = ({ query }: QueryPlanProps) => {
 				setIsLoading(false)
 			}
 		})()
-	}, [query])
+	}, [query, activeTab])
 
 	if (isLoading) {
 		return (

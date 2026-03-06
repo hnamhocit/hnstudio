@@ -11,8 +11,8 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { api } from '@/config'
 import { IQueryResult } from '@/interfaces'
+import { dataSourcesService } from '@/services'
 import { useDataSourcesStore, useTabsStore } from '@/stores'
 import { exportToCsv, notifyError } from '@/utils'
 import { AxiosError } from 'axios'
@@ -60,15 +60,13 @@ const QueryBuilder = () => {
 
 		try {
 			const query = contentById[activeTab!.id] || ''
-			const { data } = await api.post(
-				`/data_sources/${activeTab!.dataSourceId}/databases/${activeTab!.database}/query`,
-				{
-					query,
-					dialect: datasources.find(
-						(ds) => ds.id === activeTab!.dataSourceId,
-					)?.type,
-					forced,
-				},
+			const { data } = await dataSourcesService.runQuery(
+				activeTab!.dataSourceId,
+				query,
+				datasources.find((ds) => ds.id === activeTab!.dataSourceId)
+					?.type || '',
+				forced,
+				activeTab?.database,
 			)
 
 			setResult(data.data)

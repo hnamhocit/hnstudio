@@ -1,11 +1,12 @@
 import { PlusIcon } from 'lucide-react'
-import AddDataSourceDialog from './AddDataSourceDialog'
+
+import DataSourceDialog from '@/components/DataSourceDialog'
 import DataSources from './DataSources'
 
 const Sidebar = () => {
 	return (
 		<div className='shrink-0 w-92 border-r overflow-y-scroll'>
-			<AddDataSourceDialog>
+			<DataSourceDialog>
 				<div className='flex items-center justify-center gap-4 p-4 border-b cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors duration-300'>
 					{/* Vòng tròn bọc Icon */}
 					<PlusIcon size={16} />
@@ -14,7 +15,7 @@ const Sidebar = () => {
 						Add Connection
 					</span>
 				</div>
-			</AddDataSourceDialog>
+			</DataSourceDialog>
 
 			<DataSources />
 		</div>

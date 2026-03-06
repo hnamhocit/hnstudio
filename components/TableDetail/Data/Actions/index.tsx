@@ -10,8 +10,8 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { api } from '@/config'
 import { ITab } from '@/interfaces'
+import { dataSourcesService } from '@/services'
 import { useDataEditorStore, useDataSourcesStore, useTabsStore } from '@/stores'
 import { generateSqlStatements, getTablePath, notifyError } from '@/utils'
 import DeleteButton from './DeleteButton'
@@ -29,7 +29,7 @@ const Actions = ({ refreshData, primaryColumnName }: ActionsProps) => {
 
 	const { activeTab, tabs, commitContent, setActiveTab, setTabs } =
 		useTabsStore()
-	const { dataSourceId, database } = useDataSourcesStore()
+	const { dataSourceId, database, datasources } = useDataSourcesStore()
 	const {
 		addEmptyRow,
 		tablesState,
@@ -59,11 +59,12 @@ const Actions = ({ refreshData, primaryColumnName }: ActionsProps) => {
 		setIsSaving(true)
 
 		try {
-			await api.post(
-				`/data_sources/${dataSourceId}/databases/${database}/query`,
-				{
-					query: sqlQueries.join('\n'),
-				},
+			await dataSourcesService.runQuery(
+				dataSourceId!,
+				sqlQueries.join('\n'),
+				datasources.find((ds) => ds.id === dataSourceId)!.type,
+				true, // forced execution to allow multiple statements
+				database!,
 			)
 
 			await refreshData()

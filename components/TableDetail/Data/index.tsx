@@ -2,9 +2,9 @@ import { CheckCircle2Icon, HardDriveIcon, KeyboardIcon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import DatabaseTable from '@/components/DatabaseTable'
-import { api } from '@/config'
 import { useSchema } from '@/hooks'
 import { IQueryResult } from '@/interfaces'
+import { databaseService } from '@/services'
 import { useDataEditorStore, useTabsStore } from '@/stores'
 import { formatDataSize, getTablePath, notifyError } from '@/utils'
 import Actions from './Actions'
@@ -13,7 +13,10 @@ const Data = () => {
 	const { activeTab } = useTabsStore()
 	const [result, setResult] = useState<IQueryResult | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
-	const { schema, hasCachedSchema } = useSchema()
+	const { schema, hasCachedSchema } = useSchema(
+		activeTab!.dataSourceId!,
+		activeTab!.database!,
+	)
 	const { initializeTable, discardTableChanges } = useDataEditorStore()
 	const tablePath = getTablePath()
 
@@ -22,12 +25,12 @@ const Data = () => {
 		columns.find((col) => col.is_primary)?.column_name || 'id'
 
 	const refreshData = useCallback(async () => {
-		if (!activeTab || !hasCachedSchema) return
+		if (!hasCachedSchema) return
 
 		setIsLoading(true)
 
 		try {
-			const { data } = await api.get(tablePath + '/preview')
+			const { data } = await databaseService.getTablePreview()
 
 			setResult(data.data)
 			discardTableChanges(tablePath)
@@ -37,13 +40,7 @@ const Data = () => {
 		} finally {
 			setIsLoading(false)
 		}
-	}, [
-		activeTab,
-		hasCachedSchema,
-		initializeTable,
-		tablePath,
-		discardTableChanges,
-	])
+	}, [hasCachedSchema, initializeTable, tablePath, discardTableChanges])
 
 	useEffect(() => {
 		refreshData()

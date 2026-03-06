@@ -27,7 +27,7 @@ const hostConnectionSchema = baseDataSourceSchema
 		database_name: z.string().optional(),
 	})
 	.superRefine((data, ctx) => {
-		// Luồng 1: Nếu là SQLite -> Bắt buộc có đường dẫn file (database_name), bỏ qua mọi thứ khác
+		// Luồng 1: SQLite
 		if (data.type === 'sqlite') {
 			if (!data.database_name || data.database_name.trim() === '') {
 				ctx.addIssue({
@@ -39,35 +39,45 @@ const hostConnectionSchema = baseDataSourceSchema
 			return
 		}
 
-		// Luồng 2: Với Postgres, MySQL, SQL Server -> Bắt buộc có Host, Port, Username
-		if (!data.host)
+		// Luồng 2: Validate Server
+		if (!data.host) {
 			ctx.addIssue({
 				code: 'custom',
 				message: 'Host is required',
 				path: ['host'],
 			})
-		if (!data.port)
+		}
+		if (!data.port) {
 			ctx.addIssue({
 				code: 'custom',
 				message: 'Port is required',
 				path: ['port'],
 			})
-		if (!data.username)
+		}
+		if (!data.username) {
 			ctx.addIssue({
 				code: 'custom',
 				message: 'Username is required',
 				path: ['username'],
 			})
+		}
 
-		// Luồng 3: Xử lý riêng Database Name
-		// Postgres và SQL Server BẮT BUỘC phải có tên DB. (MySQL thì không cần)
+		// Luồng 3: Logic chốt hạ cho Database Name
+		const isDbNameRequiredByType =
+			data.type === 'postgresql' || data.type === 'sql-server'
+		const isDbNameRequiredByLogic = !data.showAllDatabases
+
+		// Thêm hàm trim() để chống user gõ dấu cách
 		if (
-			(data.type === 'postgresql' || data.type === 'sql-server') &&
-			!data.database_name
+			(isDbNameRequiredByType || isDbNameRequiredByLogic) &&
+			(!data.database_name || data.database_name.trim() === '')
 		) {
 			ctx.addIssue({
 				code: 'custom',
-				message: `${data.type} requires a database name`,
+				message:
+					!data.showAllDatabases ?
+						'Please specify a database name if you hide other databases'
+					:	`${data.type} requires a database name`,
 				path: ['database_name'],
 			})
 		}
@@ -81,7 +91,7 @@ const urlConnectionSchema = baseDataSourceSchema.extend({
 		.refine((val) => {
 			const patterns = [
 				/^postgres(ql)?:\/\//,
-				/^mysql:\/\//,
+				/^(mysql|mariadb):\/\//, // Đã bổ sung mariadb
 				/^sqlite:\/\//,
 				/^(sqlserver|mssql):\/\//,
 			]

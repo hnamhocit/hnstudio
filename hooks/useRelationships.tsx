@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
-import { api } from '@/config'
+import { databaseService } from '@/services'
 import { useDataSourcesStore, useTabsStore } from '@/stores'
-import { getTablePath, notifyError } from '@/utils'
+import { notifyError } from '@/utils'
 
 export const useRelationships = () => {
 	const [isLoading, setIsLoading] = useState(false)
@@ -21,7 +21,7 @@ export const useRelationships = () => {
 			setIsLoading(true)
 
 			try {
-				const { data } = await api.get(getTablePath('relationships'))
+				const { data } = await databaseService.getTableRelationships()
 				setCachedRelationships(cacheKey, data.data || [])
 			} catch (error) {
 				notifyError(error, 'Failed to fetch relationships.')
@@ -31,7 +31,12 @@ export const useRelationships = () => {
 		}
 
 		fetchRels()
-	}, [cachedRelationships, cacheKey, hasRelationships])
+	}, [
+		cachedRelationships,
+		cacheKey,
+		hasRelationships,
+		setCachedRelationships,
+	])
 
 	return { relationships, isLoading, hasRelationships }
 }

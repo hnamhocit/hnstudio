@@ -1,6 +1,5 @@
 import clsx from 'clsx'
 import { DatabaseIcon, DatabaseZapIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 
 import {
 	Accordion,
@@ -8,92 +7,66 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from '@/components/ui/accordion'
-import { api } from '@/config'
+import { useDatabases } from '@/hooks'
 import { useDataSourcesStore } from '@/stores'
-import { notifyError } from '@/utils'
 import Tables from './Tables'
 
-const Databases = () => {
-	const [isLoading, setIsLoading] = useState(false)
-	const fetchLock = useRef<string | null>(null)
+interface DatabasesProps {
+	dataSourceId: string
+}
 
-	const {
-		cachedDatabases,
-		setCachedDatabases,
-		dataSourceId,
-		setDatabase,
-		database,
-	} = useDataSourcesStore()
+const Databases = ({ dataSourceId }: DatabasesProps) => {
+	const { databases, isLoading } = useDatabases(dataSourceId)
+	const { database, setDatabase } = useDataSourcesStore()
 
-	const hasCachedData = !!(dataSourceId && cachedDatabases[dataSourceId])
+	if (isLoading) {
+		return (
+			<div className='text-center text-gray-500 py-4'>
+				Loading databases...
+			</div>
+		)
+	}
 
-	useEffect(() => {
-		;(async () => {
-			if (!dataSourceId || hasCachedData) return
-
-			if (fetchLock.current === dataSourceId) return
-
-			const fetchDatabases = async () => {
-				setIsLoading(true)
-				fetchLock.current = dataSourceId // Đóng khóa lại
-
-				try {
-					const { data } = await api.get(
-						`/data_sources/${dataSourceId}/databases`,
-					)
-					setCachedDatabases(dataSourceId, data.data)
-				} catch (error) {
-					notifyError(error, 'Failed to fetch databases.')
-					fetchLock.current = null // Nếu lỗi thì mở khóa ra để user có thể thử lại
-				} finally {
-					setIsLoading(false)
-				}
-			}
-
-			fetchDatabases()
-		})()
-	}, [dataSourceId, hasCachedData, setCachedDatabases])
+	if (databases?.length === 0) {
+		return (
+			<div className='text-center text-gray-500 py-4'>
+				No databases found.
+			</div>
+		)
+	}
 
 	return (
-		<AccordionContent>
-			{isLoading ?
-				<div className='text-center text-gray-500'>
-					Loading databases...
-				</div>
-			:	<Accordion
-					type='single'
-					collapsible>
-					{cachedDatabases[dataSourceId!]?.length === 0 ?
-						<div className='text-center text-gray-500'>
-							No databases found.
+		<Accordion
+			type='single'
+			collapsible>
+			{databases?.map((db) => (
+				<AccordionItem
+					value={db}
+					key={db}>
+					<AccordionTrigger onClick={() => setDatabase(db)}>
+						<div
+							className={clsx(
+								'flex items-center gap-4 font-mono text-lg font-medium',
+								database === db ? 'text-primary' : (
+									'text-gray-700 dark:text-gray-500'
+								),
+							)}>
+							{database === db ?
+								<DatabaseZapIcon size={18} />
+							:	<DatabaseIcon size={18} />}
+							{db}
 						</div>
-					:	cachedDatabases[dataSourceId!]?.map((db) => (
-							<AccordionItem
-								value={db}
-								key={db}>
-								<AccordionTrigger
-									onClick={() => setDatabase(db)}>
-									<div
-										className={clsx(
-											'flex items-center gap-4 font-mono text-lg font-medium',
-											database === db ? 'text-primary' : (
-												'text-gray-700 dark:text-gray-500'
-											),
-										)}>
-										{database === db ?
-											<DatabaseZapIcon size={18} />
-										:	<DatabaseIcon size={18} />}
-										{db}
-									</div>
-								</AccordionTrigger>
+					</AccordionTrigger>
 
-								<Tables database={db} />
-							</AccordionItem>
-						))
-					}
-				</Accordion>
-			}
-		</AccordionContent>
+					<AccordionContent>
+						<Tables
+							database={db}
+							dataSourceId={dataSourceId}
+						/>
+					</AccordionContent>
+				</AccordionItem>
+			))}
+		</Accordion>
 	)
 }
 

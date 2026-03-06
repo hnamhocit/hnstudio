@@ -1,41 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { api } from '@/config'
-import { useDataSourcesStore, useTabsStore } from '@/stores'
+import { databaseService } from '@/services'
+import { useDataSourcesStore } from '@/stores'
 import { notifyError } from '@/utils'
 
-export const useSchema = () => {
-	const { activeTab } = useTabsStore()
+export const useSchema = (dataSourceId: string, database: string) => {
 	const { cachedSchema, setCachedSchema } = useDataSourcesStore()
 	const [isLoading, setIsLoading] = useState(false)
 
-	const cacheKey = `${activeTab!.dataSourceId}-${activeTab!.database}`
-	const hasCachedSchema = !!cachedSchema[cacheKey]
+	const cacheKey = `${dataSourceId}-${database}`
 	const schema = cachedSchema[cacheKey] || {}
+	const hasCachedSchema = !!cachedSchema[cacheKey]
+
+	const fetchSchema = useCallback(async () => {
+		if (!dataSourceId || !database) return
+
+		setIsLoading(true)
+
+		try {
+			const { data } = await databaseService.getTableSchema(
+				dataSourceId,
+				database,
+			)
+			setCachedSchema(cacheKey, data.data)
+		} catch (error) {
+			notifyError(error, 'Failed to fetch schema.')
+		} finally {
+			setIsLoading(false)
+		}
+	}, [dataSourceId, database, cacheKey, setCachedSchema])
 
 	useEffect(() => {
-		const getSchema = async () => {
-			if (!activeTab) return
-
-			setIsLoading(true)
-
-			try {
-				const { data } = await api.get(
-					`/data_sources/${activeTab.dataSourceId}/databases/${activeTab.database}/schema`,
-				)
-
-				setCachedSchema(cacheKey, data.data)
-			} catch (error) {
-				notifyError(error, 'Failed to fetch schema.')
-			} finally {
-				setIsLoading(false)
-			}
-		}
-
 		if (!hasCachedSchema) {
-			getSchema()
+			fetchSchema()
 		}
-	}, [activeTab, hasCachedSchema, cacheKey])
+	}, [hasCachedSchema, fetchSchema])
 
-	return { schema, isLoading, hasCachedSchema }
+	return { schema, isLoading, reload: fetchSchema, hasCachedSchema }
 }

@@ -24,7 +24,10 @@ const ERDiagram = () => {
 
 	const { activeTab } = useTabsStore()
 	const { relationships, hasRelationships, isLoading } = useRelationships()
-	const { schema } = useSchema()
+	const { schema } = useSchema(
+		activeTab?.dataSourceId || '',
+		activeTab?.database || '',
+	)
 
 	// 3. Map dữ liệu sang Nodes và Edges
 	useEffect(() => {

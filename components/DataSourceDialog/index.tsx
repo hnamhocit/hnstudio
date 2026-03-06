@@ -12,6 +12,7 @@ import {
 	useWatch,
 } from 'react-hook-form'
 import { toast } from 'sonner'
+import z from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -32,7 +33,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { api } from '@/config'
 import { supportDataSources } from '@/constants/supportDataSources'
 import {
 	DataSourceFormData,
@@ -42,16 +42,37 @@ import {
 import { dataSourcesService } from '@/services'
 import { useDataSourcesStore, useUserStore } from '@/stores'
 import { notifyError } from '@/utils'
-import z from 'zod'
 
-interface AddDataSourceDialogProps {
-	children: ReactNode
+interface DataSourceDialogProps {
+	children?: ReactNode
+	dataSourceId?: string | null
+	open?: boolean
+	onOpenChange?: (open: boolean) => void
 }
 
-const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
-	const [isOpen, setIsOpen] = useState(false)
-	const [step, setStep] = useState<1 | 2>(1)
+const DEFAULT_FORM_VALUES = {
+	name: '',
+	type: 'postgresql' as const,
+	method: 'host' as const,
+	host: 'localhost',
+	port: 5432,
+	database_name: '',
+	savePassword: true,
+	showAllDatabases: true,
+	username: 'postgres',
+	password: '',
+}
 
+const DataSourceDialog = ({
+	children,
+	dataSourceId,
+	open,
+	onOpenChange,
+}: DataSourceDialogProps) => {
+	const [internalIsOpen, setInternalIsOpen] = useState(false)
+	const isDialogOpen = open !== undefined ? open : internalIsOpen
+
+	const [step, setStep] = useState<1 | 2>(1)
 	const [isTesting, setIsTesting] = useState(false)
 	const [isTestSuccessful, setIsTestSuccessful] = useState(false)
 
@@ -66,18 +87,7 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 		watch,
 	} = useForm<DataSourceFormData>({
 		resolver: zodResolver(dataSourceSchema),
-		defaultValues: {
-			name: '', // <-- THÊM MỚI: Default value cho name
-			type: 'postgresql',
-			method: 'host',
-			host: 'localhost',
-			port: 5432,
-			database_name: '',
-			savePassword: true,
-			showAllDatabases: true,
-			username: 'postgres',
-			password: '',
-		},
+		defaultValues: DEFAULT_FORM_VALUES,
 	})
 
 	const { datasources, setDatasources } = useDataSourcesStore()
@@ -93,7 +103,49 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 	}>
 	const urlErrors = errors as FieldErrors<{ url: string }>
 
+	const isEditMode = !!dataSourceId
+
+	// Cập nhật form data khi mở dialog
 	useEffect(() => {
+		if (isDialogOpen) {
+			if (isEditMode) {
+				const existingDs = datasources.find(
+					(ds) => ds.id === dataSourceId,
+				)
+				if (existingDs) {
+					// Trải phẳng dữ liệu từ config ra để reset vào form
+					const formDataToReset: DataSourceFormData = {
+						name: existingDs.name,
+						type: existingDs.type as z.infer<
+							typeof datasourceSchema
+						>,
+						method: existingDs.config.method || 'host',
+						host: existingDs.config.host || '',
+						port: existingDs.config.port,
+						database_name: existingDs.config.database_name || '',
+						savePassword: existingDs.config.savePassword ?? true,
+						showAllDatabases:
+							existingDs.config.showAllDatabases ?? true,
+						username: existingDs.config.username || '',
+						password: existingDs.config.password || '', // Mật khẩu có thể rỗng nếu user chọn không lưu
+						url: existingDs.config.url || '',
+					}
+
+					reset(formDataToReset)
+					setStep(2)
+				}
+			} else {
+				reset(DEFAULT_FORM_VALUES)
+				setStep(1)
+			}
+			setIsTestSuccessful(false)
+		}
+	}, [isDialogOpen, isEditMode, dataSourceId, datasources, reset])
+
+	// Cập nhật giá trị mặc định khi đổi loại Database (Chỉ áp dụng khi ở Add Mode)
+	useEffect(() => {
+		if (isEditMode) return // Bỏ qua nếu đang ở Edit Mode để không ghi đè dữ liệu cũ
+
 		if (dbType === 'postgresql') {
 			setValue('port', 5432)
 			setValue('username', 'postgres')
@@ -104,11 +156,11 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 			setValue('port', 1433)
 			setValue('username', 'sa')
 		} else if (dbType === 'sqlite') {
-			setValue('port', undefined)
-			setValue('username', undefined)
+			setValue('port', undefined as unknown as number)
+			setValue('username', undefined as unknown as string)
 			setValue('method', 'host')
 		}
-	}, [dbType, setValue])
+	}, [dbType, setValue, isEditMode])
 
 	useEffect(() => {
 		const subscription = watch(() => {
@@ -119,12 +171,14 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 		return () => subscription.unsubscribe()
 	}, [watch, isTestSuccessful])
 
-	const handleOpenChange = (open: boolean) => {
-		setIsOpen(open)
-		if (!open) {
+	const handleOpenChange = (newOpen: boolean) => {
+		if (onOpenChange) onOpenChange(newOpen)
+		setInternalIsOpen(newOpen)
+
+		if (!newOpen) {
 			setTimeout(() => {
-				setStep(1)
-				reset()
+				if (!isEditMode) setStep(1)
+				reset(DEFAULT_FORM_VALUES)
 				setIsTestSuccessful(false)
 			}, 300)
 		}
@@ -145,7 +199,9 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 
 		try {
 			const formData = getValues()
-			await api.post('/data_sources/test-connection', formData)
+
+			await dataSourcesService.testConnection(formData)
+
 			setIsTestSuccessful(true)
 			toast.success('Connection successful!', { position: 'top-center' })
 		} catch (error) {
@@ -157,19 +213,59 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 
 	const onSubmit: SubmitHandler<DataSourceFormData> = async (formData) => {
 		try {
-			const { data } = await dataSourcesService.addDataSource({
-				...formData,
-				userId: user!.id,
-			})
+			if (isEditMode) {
+				const { error } = await dataSourcesService.update(
+					dataSourceId,
+					formData,
+				)
 
-			setDatasources([...datasources, data.data])
-			reset()
-			setIsOpen(false)
-			toast.success('Data source added successfully!', {
-				position: 'top-center',
-			})
+				if (error) {
+					toast.error(error.message, { position: 'top-center' })
+					return
+				}
+
+				// Cập nhật lại store: Gói các trường connection vào object config
+				setDatasources(
+					datasources.map((ds) => {
+						if (ds.id === dataSourceId) {
+							const { name, type, ...configData } = formData
+							return {
+								...ds,
+								name,
+								config: {
+									...ds.config,
+									...configData,
+								},
+							}
+						}
+						return ds
+					}),
+				)
+
+				toast.success('Data source updated successfully!', {
+					position: 'top-center',
+				})
+			} else {
+				const { data } = await dataSourcesService.addDataSource({
+					...formData,
+					userId: user!.id,
+				})
+
+				setDatasources([...datasources, data.data])
+
+				toast.success('Data source added successfully!', {
+					position: 'top-center',
+				})
+			}
+
+			handleOpenChange(false)
 		} catch (error) {
-			notifyError(error, 'Failed to add data source.')
+			notifyError(
+				error,
+				isEditMode ?
+					'Failed to update data source.'
+				:	'Failed to add data source.',
+			)
 		}
 	}
 
@@ -177,14 +273,14 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 
 	return (
 		<Dialog
-			open={isOpen}
+			open={isDialogOpen}
 			onOpenChange={handleOpenChange}>
-			<DialogTrigger asChild>{children}</DialogTrigger>
+			{children && <DialogTrigger asChild>{children}</DialogTrigger>}
 
 			<DialogContent className='max-w-md'>
 				<DialogHeader>
 					<DialogTitle className='flex items-center gap-2'>
-						{step === 2 && (
+						{step === 2 && !isEditMode && (
 							<button
 								title='go back'
 								onClick={() => setStep(1)}
@@ -194,16 +290,24 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 						)}
 						{step === 1 ?
 							'Select Data Source'
+						: isEditMode ?
+							`Edit ${selectedDbInfo?.name || 'Connection'}`
 						:	`Configure ${selectedDbInfo?.name || 'Database'}`}
 					</DialogTitle>
 				</DialogHeader>
 
-				{step === 1 && (
+				{step === 1 && !isEditMode && (
 					<div className='grid grid-cols-2 gap-4 py-4'>
 						{supportDataSources.map((ds) => (
 							<button
 								key={ds.id}
-								onClick={() => handleSelectDatabase(ds.id)}
+								onClick={() =>
+									handleSelectDatabase(
+										ds.id as z.infer<
+											typeof datasourceSchema
+										>,
+									)
+								}
 								className='flex flex-col items-center justify-center p-6 gap-3 border rounded-xl hover:border-primary hover:bg-primary/5 hover:text-primary transition-all duration-200 group'>
 								<Image
 									src={
@@ -227,7 +331,6 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 						onSubmit={handleSubmit(onSubmit)}
 						className='animate-in fade-in slide-in-from-right-4 duration-300'>
 						<FieldSet>
-							{/* --- BẮT ĐẦU: TRƯỜNG CONNECTION NAME --- */}
 							<FieldGroup className='mb-4'>
 								<div className='space-y-2'>
 									<Field orientation='horizontal'>
@@ -252,7 +355,6 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 									)}
 								</div>
 							</FieldGroup>
-							{/* --- KẾT THÚC: TRƯỜNG CONNECTION NAME --- */}
 
 							{dbType !== 'sqlite' && (
 								<div className='text-indigo-500 font-semibold font-mono'>
@@ -312,6 +414,9 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 														{...field}
 														type='text'
 														placeholder='e.g. postgres://user:pass@localhost:5432/db'
+														value={
+															field.value || ''
+														}
 													/>
 												)}
 											/>
@@ -454,7 +559,8 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 								</div>
 							</FieldGroup>
 
-							{dbType !== 'sqlite' && (
+							{/* CHỈ HIỂN THỊ KHI method === 'host' */}
+							{dbType !== 'sqlite' && method === 'host' && (
 								<>
 									<div className='text-indigo-500 font-semibold font-mono'>
 										Authentication
@@ -568,7 +674,7 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 									disabled={
 										!isTestSuccessful || isSubmitting
 									}>
-									Connect
+									{isEditMode ? 'Save Connection' : 'Connect'}
 								</Button>
 							</div>
 						</FieldSet>
@@ -579,4 +685,4 @@ const AddDataSourceDialog = ({ children }: AddDataSourceDialogProps) => {
 	)
 }
 
-export default AddDataSourceDialog
+export default DataSourceDialog

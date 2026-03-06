@@ -4,7 +4,7 @@ export const getTablePath = (path?: string) => {
 	const { activeTab } = useTabsStore.getState()
 
 	if (!activeTab) {
-		throw new Error('No active tab found')
+		return ''
 	}
 
 	const { database, dataSourceId, table } = activeTab
