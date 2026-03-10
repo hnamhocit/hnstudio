@@ -1,3 +1,5 @@
+'use client'
+
 import {
 	BadgeCheckIcon,
 	FlameIcon,
@@ -7,6 +9,9 @@ import {
 	StarIcon,
 } from 'lucide-react'
 import Image from 'next/image'
+import { useParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -16,13 +21,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card'
+import { IUser } from '@/interfaces'
 import { blogPosts, problemPosts } from '@/lib/community'
-
-interface UserProfilePageProps {
-	params: Promise<{
-		user_id: string
-	}>
-}
+import { usersService } from '@/services'
+import { notifyError } from '@/utils'
 
 const badges = [
 	'Query Tuner',
@@ -39,20 +41,90 @@ const activities = [
 	'Unlocked "Schema Architect" badge',
 ]
 
-export default async function UserProfilePage({
-	params,
-}: UserProfilePageProps) {
-	const { user_id } = await params
-	const safeUserId = user_id || 'unknown'
+export default function UserProfilePage() {
+	const params = useParams()
+	const userId = String(params.user_id ?? '')
+
+	const [user, setUser] = useState<IUser | null>(null)
+	const [isLoading, setIsLoading] = useState(true)
+
+	useEffect(() => {
+		if (!userId) {
+			setIsLoading(false)
+			return
+		}
+
+		let isMounted = true
+
+		;(async () => {
+			try {
+				setIsLoading(true)
+
+				const { data, error } = await usersService.getUserById(userId)
+
+				if (error) {
+					toast.error(error.message, { position: 'top-center' })
+					return
+				}
+
+				if (isMounted) {
+					setUser(data ?? null)
+				}
+			} catch (error) {
+				notifyError(error, 'Failed to load user profile')
+			} finally {
+				if (isMounted) {
+					setIsLoading(false)
+				}
+			}
+		})()
+
+		return () => {
+			isMounted = false
+		}
+	}, [userId])
+
+	const safeUserId = user?.id || userId || 'unknown'
 	const shortId = safeUserId.slice(0, 8)
-	const authoredBlogCount =
-		blogPosts.filter((post) => post.authorId === safeUserId).length ||
-		blogPosts.length
-	const helpedResolvedCount =
-		problemPosts.filter(
+
+	const displayName = user?.name?.trim() || `Engineer ${shortId}`
+	const displayEmail = user?.email?.trim() || `@${safeUserId}`
+	const avatarSrc = user?.photo_url || '/default-user.jpg'
+
+	const authoredBlogCount = useMemo(() => {
+		return blogPosts.filter((post) => post.authorId === safeUserId).length
+	}, [safeUserId])
+
+	const helpedResolvedCount = useMemo(() => {
+		return problemPosts.filter(
 			(problem) =>
 				problem.isResolved && problem.resolvedById === safeUserId,
-		).length || problemPosts.filter((problem) => problem.isResolved).length
+		).length
+	}, [safeUserId])
+
+	if (isLoading) {
+		return (
+			<div className='h-full overflow-auto'>
+				<div className='mx-auto max-w-6xl p-4 md:p-8'>
+					<div className='rounded-2xl border p-6 text-sm text-muted-foreground'>
+						Loading user profile...
+					</div>
+				</div>
+			</div>
+		)
+	}
+
+	if (!user && !userId) {
+		return (
+			<div className='h-full overflow-auto'>
+				<div className='mx-auto max-w-6xl p-4 md:p-8'>
+					<div className='rounded-2xl border p-6 text-sm text-destructive'>
+						Invalid user id.
+					</div>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div className='h-full overflow-auto'>
@@ -62,8 +134,8 @@ export default async function UserProfilePage({
 						<div className='flex items-center gap-4'>
 							<div className='relative'>
 								<Image
-									src='/default-user.jpg'
-									alt='User avatar'
+									src={avatarSrc}
+									alt={`${displayName} avatar`}
 									width={80}
 									height={80}
 									className='rounded-xl border object-cover'
@@ -75,11 +147,17 @@ export default async function UserProfilePage({
 
 							<div>
 								<div className='text-2xl font-bold tracking-tight'>
-									Engineer {shortId}
+									{displayName}
 								</div>
+
 								<div className='text-sm text-muted-foreground'>
-									@{safeUserId}
+									{displayEmail}
 								</div>
+
+								<div className='mt-1 text-xs text-muted-foreground'>
+									ID: {shortId}
+								</div>
+
 								<div className='mt-2 flex flex-wrap items-center gap-2 text-xs'>
 									<span className='inline-flex items-center gap-1 rounded-full border px-2 py-0.5'>
 										<FlameIcon size={12} />
@@ -119,6 +197,7 @@ export default async function UserProfilePage({
 							</CardTitle>
 						</CardHeader>
 					</Card>
+
 					<Card>
 						<CardHeader>
 							<CardDescription>Problems Helped</CardDescription>
@@ -127,6 +206,7 @@ export default async function UserProfilePage({
 							</CardTitle>
 						</CardHeader>
 					</Card>
+
 					<Card>
 						<CardHeader>
 							<CardDescription>Community Stars</CardDescription>
@@ -146,6 +226,7 @@ export default async function UserProfilePage({
 								Recent engineering signals and contributions.
 							</CardDescription>
 						</CardHeader>
+
 						<CardContent>
 							<ul className='space-y-3 text-sm'>
 								{activities.map((activity) => (
@@ -166,6 +247,7 @@ export default async function UserProfilePage({
 								Custom badge slots ready for expansion.
 							</CardDescription>
 						</CardHeader>
+
 						<CardContent>
 							<div className='flex flex-wrap gap-2'>
 								{badges.map((badge) => (

@@ -33,6 +33,8 @@ import {
 } from '@/stores'
 import DataSourceSearch from './DataSourceSearch'
 
+const previewUnreadNotifications = 3
+
 const Header = () => {
 	const { user, setUser } = useUserStore()
 	const [isDarkMode, setIsDarkMode] = useState(false)
@@ -143,9 +145,16 @@ const Header = () => {
 
 				<motion.div whileTap={{ scale: 0.95 }}>
 					<Button
+						asChild
 						size='icon'
-						variant='outline'>
-						<BellIcon />
+						variant='outline'
+						className='relative'>
+						<Link href='/notifications'>
+							<BellIcon />
+							<span className='absolute -right-1 -top-1 inline-flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold text-white'>
+								{previewUnreadNotifications}
+							</span>
+						</Link>
 					</Button>
 				</motion.div>
 
@@ -168,8 +177,9 @@ const Header = () => {
 									src={user?.photo_url || '/default-user.jpg'}
 								/>
 								<AvatarFallback>
-									{user?.name?.substring(0, 2).toUpperCase() ||
-										'U'}
+									{user?.name
+										?.substring(0, 2)
+										.toUpperCase() || 'U'}
 								</AvatarFallback>
 							</Avatar>
 						</motion.div>

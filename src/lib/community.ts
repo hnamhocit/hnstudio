@@ -38,6 +38,18 @@ export interface ProblemPost {
 	answers: ProblemAnswer[]
 }
 
+export type NotificationType = 'system' | 'problem' | 'blog' | 'mention'
+
+export interface NotificationItem {
+	id: string
+	type: NotificationType
+	title: string
+	message: string
+	createdAt: string
+	isRead: boolean
+	actionUrl?: string
+}
+
 export const mockProfileId = '2b649ffd-82a1-4d19-95ec-a41878b0eaed'
 
 export const blogPosts: BlogPost[] = [
@@ -243,5 +255,57 @@ export const problemPosts: ProblemPost[] = [
 				isAccepted: true,
 			},
 		],
+	},
+]
+
+export const notificationItems: NotificationItem[] = [
+	{
+		id: 'n-1001',
+		type: 'problem',
+		title: 'Your answer was marked as accepted',
+		message:
+			'Lan Data accepted your answer in "Postgres query plan changed after index creation".',
+		createdAt: '2026-03-10 09:12',
+		isRead: false,
+		actionUrl: '/problems/p-1002',
+	},
+	{
+		id: 'n-1002',
+		type: 'mention',
+		title: 'You were mentioned in a discussion',
+		message:
+			'Nhat DBA mentioned you in a thread about index selectivity regression.',
+		createdAt: '2026-03-10 08:47',
+		isRead: false,
+		actionUrl: '/problems/p-1002',
+	},
+	{
+		id: 'n-1003',
+		type: 'system',
+		title: 'Beta maintenance window scheduled',
+		message:
+			'Preview environment may be unstable from 23:00 to 23:30 (UTC+7) tonight.',
+		createdAt: '2026-03-09 18:00',
+		isRead: false,
+	},
+	{
+		id: 'n-1004',
+		type: 'blog',
+		title: 'New community blog posted',
+		message:
+			'"Schema Migration Playbook For Busy Teams" is now available in Engineering Blog.',
+		createdAt: '2026-03-09 10:25',
+		isRead: true,
+		actionUrl: '/blog/schema-migration-playbook',
+	},
+	{
+		id: 'n-1005',
+		type: 'problem',
+		title: 'Problem you follow has a new answer',
+		message:
+			'"How to model audit logs without killing write performance?" received a new response.',
+		createdAt: '2026-03-08 16:40',
+		isRead: true,
+		actionUrl: '/problems/p-1003',
 	},
 ]

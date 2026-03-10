@@ -1,5 +1,8 @@
 'use client'
 
+import Image from 'next/image'
+import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -9,13 +12,30 @@ import {
 	CardTitle,
 } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import Image from 'next/image'
+import { notifyError, supabaseClient } from '@/utils'
+import { toast } from 'sonner'
 import LoginForm from './LoginForm'
 import RegisterForm from './RegisterForm'
 
 export default function Enter() {
-	const handleSocialLogin = (provider: 'google' | 'facebook') => {
-		console.log(`Đăng nhập bằng ${provider}`)
+	const [disabled, setDisabled] = useState(false)
+
+	const signInWithProvider = async (provider: 'google' | 'github') => {
+		setDisabled(true)
+
+		try {
+			const { error } = await supabaseClient.auth.signInWithOAuth({
+				provider: provider,
+			})
+
+			if (error) {
+				toast.error(error.message, { position: 'top-center' })
+			}
+		} catch (error) {
+			notifyError(error, `${provider} login failed`)
+		} finally {
+			setDisabled(false)
+		}
 	}
 
 	return (
@@ -63,8 +83,9 @@ export default function Enter() {
 
 					<div className='grid grid-cols-2 gap-4'>
 						<Button
+							disabled={disabled}
 							variant='outline'
-							onClick={() => handleSocialLogin('google')}>
+							onClick={() => signInWithProvider('google')}>
 							<Image
 								src='/google.svg'
 								width={16}
@@ -75,15 +96,16 @@ export default function Enter() {
 						</Button>
 
 						<Button
+							disabled={disabled}
 							variant='outline'
-							onClick={() => handleSocialLogin('facebook')}>
+							onClick={() => signInWithProvider('github')}>
 							<Image
-								src='/facebook.png'
+								src='/github.png'
 								width={16}
 								height={16}
-								alt='Facebook Logo'
+								alt='GitHub Logo'
 							/>
-							Facebook
+							GitHub
 						</Button>
 					</div>
 				</CardContent>
