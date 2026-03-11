@@ -42,8 +42,9 @@ export default function SelectChip({
 				disabled={disabled}>
 				<Button
 					variant='ghost'
-					className='h-8 px-2 font-mono text-sm gap-1'>
-					<span className={!value ? 'text-muted-foreground' : ''}>
+					className='h-8 px-2 font-mono text-sm gap-1 max-w-40 sm:max-w-60 shrink-0'>
+					<span
+						className={`${!value ? 'text-muted-foreground' : ''} truncate`}>
 						{selectedLabel}
 					</span>
 

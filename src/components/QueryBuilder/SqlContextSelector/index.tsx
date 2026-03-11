@@ -3,7 +3,7 @@
 
 import { useMemo } from 'react'
 
-import { useActiveTab } from '@/hooks'
+import { useActiveTab, useDatabases } from '@/hooks'
 import { useDataSourcesStore, useTabsStore } from '@/stores'
 import SelectChip from './SelectChip'
 
@@ -13,10 +13,26 @@ type Option = {
 }
 
 export default function SqlContextSelector() {
-	const { datasources, cachedDatabases } = useDataSourcesStore()
+	const { datasources } = useDataSourcesStore()
 	const { updateTab } = useTabsStore()
 
 	const activeTab = useActiveTab()
+	const activeDataSourceId = activeTab?.dataSourceId || ''
+
+	const { databases, isLoading: isDatabasesLoading } = useDatabases(
+		activeDataSourceId,
+		{
+			autoFetch: true,
+			showAllOverride: true,
+		},
+	)
+
+	const databaseOptions = useMemo<Option[]>(() => {
+		return databases.map((db) => ({
+			label: db,
+			value: db,
+		}))
+	}, [databases])
 
 	const dataSourceOptions = useMemo<Option[]>(() => {
 		return datasources.map((ds) => ({
@@ -24,16 +40,6 @@ export default function SqlContextSelector() {
 			value: ds.id,
 		}))
 	}, [datasources])
-
-	const databaseOptions = useMemo<Option[]>(() => {
-		const dataSourceId = activeTab?.dataSourceId
-		if (!dataSourceId) return []
-
-		return (cachedDatabases[dataSourceId] || []).map((db) => ({
-			label: db,
-			value: db,
-		}))
-	}, [activeTab?.dataSourceId, cachedDatabases])
 
 	if (!activeTab) return null
 
@@ -55,7 +61,7 @@ export default function SqlContextSelector() {
 	}
 
 	return (
-		<div className='flex items-center gap-1 rounded-md border px-2 py-1 w-fit'>
+		<div className='flex items-center gap-1 rounded-md border px-2 py-1 w-fit max-w-full overflow-x-auto whitespace-nowrap'>
 			<SelectChip
 				value={activeTab.dataSourceId}
 				placeholder='{data_sources}'
@@ -69,10 +75,13 @@ export default function SqlContextSelector() {
 
 					<SelectChip
 						value={activeTab.database}
-						placeholder='{database}'
+						placeholder={
+							isDatabasesLoading ? '{loading...}' : '{database}'
+						}
 						options={databaseOptions}
 						onSelect={handleSelectDatabase}
 						nullableLabel='Unspecified'
+						disabled={isDatabasesLoading}
 					/>
 				</>
 			)}

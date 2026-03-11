@@ -6,6 +6,7 @@ import { notifyError } from '@/utils'
 
 interface UseDatabasesOptions {
 	autoFetch?: boolean
+	showAllOverride?: boolean
 }
 
 export const useDatabases = (
@@ -13,11 +14,13 @@ export const useDatabases = (
 	options?: UseDatabasesOptions,
 ) => {
 	const autoFetch = options?.autoFetch ?? true
+	const showAllOverride = options?.showAllOverride
 	const hasValidDataSourceId =
 		typeof dataSourceId === 'string' && dataSourceId.trim() !== ''
 
 	const [isLoading, setIsLoading] = useState(false)
 	const inFlightRef = useRef(false)
+	const lastFetchedModeRef = useRef<string | null>(null)
 
 	const { cachedDatabases, datasources, setCachedDatabases } =
 		useDataSourcesStore()
@@ -29,18 +32,26 @@ export const useDatabases = (
 	const showAllDatabases = useMemo(() => {
 		if (!hasValidDataSourceId) return false
 
+		if (typeof showAllOverride === 'boolean') {
+			return showAllOverride
+		}
+
 		return (
 			datasources.find((ds) => ds.id === dataSourceId)?.config
 				?.showAllDatabases || false
 		)
-	}, [datasources, dataSourceId, hasValidDataSourceId])
+	}, [datasources, dataSourceId, hasValidDataSourceId, showAllOverride])
 
 	const databases = cached ?? []
+	const fetchModeKey = `${dataSourceId}:${showAllDatabases ? 'all' : 'filtered'}`
 
 	const fetchDatabases = useCallback(
 		async (forceReload = false) => {
 			if (!hasValidDataSourceId) return
-			if (!forceReload && cached) return
+			const canUseCache =
+				cached !== undefined &&
+				lastFetchedModeRef.current === fetchModeKey
+			if (!forceReload && canUseCache) return
 			if (inFlightRef.current) return
 
 			inFlightRef.current = true
@@ -53,6 +64,7 @@ export const useDatabases = (
 				)
 
 				setCachedDatabases(dataSourceId, data.data ?? [])
+				lastFetchedModeRef.current = fetchModeKey
 			} catch (error) {
 				notifyError(error, 'Failed to fetch databases.')
 			} finally {
@@ -64,6 +76,7 @@ export const useDatabases = (
 			dataSourceId,
 			showAllDatabases,
 			cached,
+			fetchModeKey,
 			setCachedDatabases,
 			hasValidDataSourceId,
 		],

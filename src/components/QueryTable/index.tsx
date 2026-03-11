@@ -35,8 +35,8 @@ const QueryTable = ({ columns, rows }: QueryTableProps) => {
 	return (
 		<div
 			ref={parentRef}
-			className='w-full h-full overflow-auto relative'>
-			<table className='w-full border-collapse whitespace-nowrap'>
+			className='w-full h-full min-h-0 overflow-auto relative'>
+			<table className='w-full min-w-max border-collapse whitespace-nowrap'>
 				<thead>
 					<tr>
 						<th className='border p-2 sticky top-0 bg-primary z-20 text-primary-foreground'>

@@ -23,7 +23,7 @@ export default function SqlEditor() {
 	return (
 		<CodeMirror
 			value={value}
-			className='text-xl max-h-120 overflow-y-auto'
+			className='text-base sm:text-lg md:text-xl max-h-96 sm:max-h-120 overflow-y-auto'
 			theme={themes.tokyoNight}
 			extensions={[
 				sql({ schema: derivedSchema, upperCaseKeywords: true }),

@@ -101,38 +101,43 @@ const QueryBuilder = () => {
 	}
 
 	return (
-		<div className='flex flex-col h-full'>
-			<div className='flex items-center justify-between p-4 border-b'>
-				<div className='flex items-center gap-4'>
-					<Button
-						onClick={() => handleRunQuery()}
-						disabled={isLoading}>
-						<PlayIcon />
-						Execute
-					</Button>
+		<div className='flex flex-col h-full min-h-0'>
+			<div className='border-b p-2 sm:p-4 space-y-2'>
+				<div className='overflow-x-auto'>
+					<div className='flex w-max min-w-full items-center gap-2 sm:gap-4'>
+						<Button
+							onClick={() => handleRunQuery()}
+							disabled={isLoading}
+							size='sm'>
+							<PlayIcon />
+							Execute
+						</Button>
 
-					<div className='w-0.5 h-6 bg-neutral-400'></div>
+						<div className='w-px h-5 sm:h-6 bg-neutral-300 dark:bg-neutral-700' />
 
-					<Button
-						size='icon'
-						variant='ghost'>
-						<SaveIcon />
-					</Button>
+						<Button
+							size='icon'
+							variant='ghost'>
+							<SaveIcon />
+						</Button>
 
-					<Button
-						size='icon'
-						variant='ghost'>
-						<WandSparklesIcon />
-					</Button>
+						<Button
+							size='icon'
+							variant='ghost'>
+							<WandSparklesIcon />
+						</Button>
 
-					<Button
-						size='icon'
-						variant='ghost'>
-						<HistoryIcon />
-					</Button>
+						<Button
+							size='icon'
+							variant='ghost'>
+							<HistoryIcon />
+						</Button>
+					</div>
 				</div>
 
-				<SqlContextSelector />
+				<div className='overflow-x-auto'>
+					<SqlContextSelector />
+				</div>
 			</div>
 
 			<SqlEditor />
@@ -140,13 +145,13 @@ const QueryBuilder = () => {
 			{result && (
 				<>
 					{/* Thanh Tabs & Stats (Đã thêm border-b để tách biệt với nội dung bên dưới) */}
-					<div className='flex items-center justify-between pt-2 px-4 shrink-0 border-b dark:border-slate-800'>
-						<div className='flex items-center gap-4'>
+					<div className='pt-2 px-2 sm:px-4 shrink-0 border-b dark:border-slate-800 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between'>
+						<div className='flex items-center gap-2 sm:gap-4 overflow-x-auto pb-1 sm:pb-0'>
 							{tabs.map((tab) => (
 								<div
 									key={tab.id}
 									className={clsx(
-										'py-2 px-4 cursor-pointer transition-colors',
+										'py-2 px-3 sm:px-4 cursor-pointer transition-colors whitespace-nowrap shrink-0',
 										{
 											'border-b-2 border-primary text-primary font-bold':
 												currentTab === tab.id,
@@ -162,15 +167,15 @@ const QueryBuilder = () => {
 
 						{/* Stats chỉ hiện ở tab Results */}
 						{currentTab === 'results' && (
-							<div className='flex items-center gap-4 text-neutral-700 dark:text-neutral-400 font-mono font-medium text-sm'>
-								<div className='flex items-center gap-2'>
+							<div className='flex items-center gap-3 sm:gap-4 overflow-x-auto pb-2 sm:pb-0 text-neutral-700 dark:text-neutral-400 font-mono font-medium text-xs sm:text-sm whitespace-nowrap'>
+								<div className='flex items-center gap-1.5 sm:gap-2 shrink-0'>
 									<TimerIcon size={16} />
 									<div>
 										{result.durationMs?.toFixed(2) || 0}ms
 									</div>
 								</div>
 
-								<div className='flex items-center gap-2'>
+								<div className='flex items-center gap-1.5 sm:gap-2 shrink-0'>
 									<DatabaseIcon size={16} />
 									<div>
 										{result.rows.length ||
@@ -182,10 +187,10 @@ const QueryBuilder = () => {
 
 								{result?.rows.length > 0 && (
 									<>
-										<div className='w-0.5 h-4 bg-neutral-300 dark:bg-neutral-700'></div>
+										<div className='w-px h-4 bg-neutral-300 dark:bg-neutral-700 shrink-0'></div>
 
 										<div
-											className='flex items-center gap-2 cursor-pointer hover:text-primary transition-colors'
+											className='flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:text-primary transition-colors shrink-0'
 											onClick={() => {
 												const timestamp = new Date()
 													.toISOString()
