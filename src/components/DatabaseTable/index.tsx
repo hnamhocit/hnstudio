@@ -84,7 +84,7 @@ const DatabaseTable = ({
 						<div className='text-lg font-semibold'>
 							{col.column_name}
 						</div>
-						<div className='flex items-center gap-2 text-neutral-300 dark:text-neutral-700'>
+						<div className='flex items-center gap-2 text-neutral-500 dark:text-neutral-300'>
 							<Icon size={18} />
 							<div className='text-sm uppercase'>
 								{col.data_type}
@@ -118,9 +118,7 @@ const DatabaseTable = ({
 			{
 				id: '_selection',
 				size: 70,
-				header: () => (
-					<div className='text-center font-mono bg-white'>#</div>
-				),
+				header: () => <div className='text-center font-mono'>#</div>,
 				cell: ({ row }) => {
 					const rowId = String(
 						row.original.__tempId ||
@@ -188,11 +186,7 @@ const DatabaseTable = ({
 							{headerGroup.headers.map((header) => (
 								<th
 									key={header.id}
-									className={clsx(
-										'border p-2 select-none sticky top-0 z-20',
-										header.index !== 0 &&
-											'bg-primary text-primary-foreground',
-									)}>
+									className='border p-2 select-none sticky top-0 z-20 bg-slate-100 text-foreground dark:bg-slate-800'>
 									{header.isPlaceholder ? null : (
 										flexRender(
 											header.column.columnDef.header,

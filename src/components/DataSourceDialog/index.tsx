@@ -1,8 +1,15 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircle2Icon, ChevronLeftIcon, Loader2Icon } from 'lucide-react'
+import {
+	AlertTriangleIcon,
+	CheckCircle2Icon,
+	ChevronLeftIcon,
+	ExternalLinkIcon,
+	Loader2Icon,
+} from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import {
 	Controller,
@@ -96,6 +103,7 @@ const DataSourceDialog = ({
 
 	const method = useWatch({ control, name: 'method' })
 	const dbType = useWatch({ control, name: 'type' })
+	const hostValue = useWatch({ control, name: 'host' })
 
 	const hostErrors = errors as FieldErrors<{
 		host: string
@@ -105,6 +113,11 @@ const DataSourceDialog = ({
 	const urlErrors = errors as FieldErrors<{ url: string }>
 
 	const isEditMode = !!dataSourceId
+	const normalizedHost = hostValue?.trim().toLowerCase() || ''
+	const isBlockedLocalHost =
+		method === 'host' &&
+		dbType !== 'sqlite' &&
+		['localhost', '127.0.0.1', '::1'].includes(normalizedHost)
 
 	// Cập nhật form data khi mở dialog
 	useEffect(() => {
@@ -198,6 +211,14 @@ const DataSourceDialog = ({
 	}
 
 	const handleTestConnection = async () => {
+		if (isBlockedLocalHost) {
+			toast.error(
+				'Localhost is blocked. Use ngrok host URL to continue.',
+				{ position: 'top-center' },
+			)
+			return
+		}
+
 		const isValid = await trigger()
 		if (!isValid) return
 
@@ -219,6 +240,14 @@ const DataSourceDialog = ({
 	}
 
 	const onSubmit: SubmitHandler<DataSourceFormData> = async (formData) => {
+		if (isBlockedLocalHost) {
+			toast.error(
+				'Cannot continue with localhost. Please use ngrok tunnel host.',
+				{ position: 'top-center' },
+			)
+			return
+		}
+
 		try {
 			if (isEditMode) {
 				const { error } = await dataSourcesService.update(
@@ -440,52 +469,103 @@ const DataSourceDialog = ({
 								{method === 'host' && (
 									<div className='space-y-2'>
 										{dbType !== 'sqlite' && (
-											<Field orientation='horizontal'>
-												<FieldLabel>Host</FieldLabel>
-												<Controller
-													control={control}
-													name='host'
-													render={({ field }) => (
-														<Input
-															{...field}
-															type='text'
-															placeholder='e.g. localhost'
-															value={
-																field.value ||
-																''
-															}
-														/>
-													)}
-												/>
+											<>
+												<Field orientation='horizontal'>
+													<FieldLabel>Host</FieldLabel>
+													<Controller
+														control={control}
+														name='host'
+														render={({
+															field,
+														}) => (
+															<Input
+																{...field}
+																type='text'
+																placeholder='e.g. localhost'
+																className={
+																	isBlockedLocalHost ?
+																		'border-amber-500 focus-visible:ring-amber-500/30'
+																	:	''
+																}
+																value={
+																	field.value ||
+																	''
+																}
+															/>
+														)}
+													/>
 
-												<FieldLabel>Port</FieldLabel>
-												<Controller
-													control={control}
-													name='port'
-													render={({ field }) => (
-														<Input
-															{...field}
-															type='number'
-															placeholder='e.g. 5432'
-															className='max-w-24'
-															value={
-																field.value ||
-																''
-															}
-															onChange={(e) =>
-																field.onChange(
-																	parseInt(
-																		e.target
-																			.value,
-																		10,
-																	) ||
-																		undefined,
-																)
-															}
-														/>
-													)}
-												/>
-											</Field>
+													<FieldLabel>Port</FieldLabel>
+													<Controller
+														control={control}
+														name='port'
+														render={({
+															field,
+														}) => (
+															<Input
+																{...field}
+																type='number'
+																placeholder='e.g. 5432'
+																className='max-w-24 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+																value={
+																	field.value ||
+																	''
+																}
+																onChange={(e) =>
+																	field.onChange(
+																		parseInt(
+																			e
+																				.target
+																				.value,
+																			10,
+																		) ||
+																			undefined,
+																	)
+																}
+															/>
+														)}
+													/>
+												</Field>
+												{isBlockedLocalHost && (
+													<div className='rounded-md border border-amber-400/40 bg-amber-50/70 dark:bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200'>
+														<div className='inline-flex items-center gap-1 font-semibold'>
+															<AlertTriangleIcon
+																size={12}
+															/>
+															Localhost is not
+															allowed
+														</div>
+														<div className='mt-1'>
+															When API runs on VPS,
+															`localhost` points to
+															the VPS itself. Please
+															use ngrok tunnel host
+															to continue.
+														</div>
+														<div className='mt-2'>
+															<Link
+																href={{
+																	pathname:
+																		'/help/connect-localhost',
+																	query: {
+																		source: dbType,
+																		name:
+																			selectedDbInfo?.name ||
+																			dbType,
+																	},
+																}}
+																className='inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-100/80 dark:bg-amber-500/20 px-2 py-1 text-xs font-semibold text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-500/30 transition-colors'>
+																How to connect
+																localhost
+																(ngrok)
+																<ExternalLinkIcon
+																	size={12}
+																/>
+															</Link>
+														</div>
+													</div>
+												)}
+											</>
 										)}
 
 										{hostErrors.host && (
@@ -658,7 +738,7 @@ const DataSourceDialog = ({
 									variant='outline'
 									type='button'
 									onClick={handleTestConnection}
-									disabled={isTesting}
+									disabled={isTesting || isBlockedLocalHost}
 									className={
 										isTestSuccessful ?
 											'border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700'
@@ -680,7 +760,9 @@ const DataSourceDialog = ({
 								<Button
 									type='submit'
 									disabled={
-										!isTestSuccessful || isSubmitting
+										!isTestSuccessful ||
+										isSubmitting ||
+										isBlockedLocalHost
 									}>
 									{isEditMode ? 'Save Connection' : 'Connect'}
 								</Button>

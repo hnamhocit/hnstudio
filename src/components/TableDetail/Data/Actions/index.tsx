@@ -69,8 +69,9 @@ const Actions = ({ refreshData, primaryColumnName }: ActionsProps) => {
 	}
 
 	return (
-		<div className='p-4 border-b'>
-			<div className='flex items-center gap-3'>
+		<div className='border-b'>
+			<div className='overflow-x-auto px-2 sm:px-4'>
+				<div className='flex w-max min-w-full items-center gap-1.5 sm:gap-3 py-2'>
 				<Button
 					onClick={() => addEmptyRow(tablePath)}
 					size='icon'
@@ -105,7 +106,7 @@ const Actions = ({ refreshData, primaryColumnName }: ActionsProps) => {
 						<Button
 							onClick={() => discardTableChanges(tablePath)}
 							variant='ghost'
-							className='text-red-500'>
+							className='text-red-500 whitespace-nowrap'>
 							<XIcon />
 							Cancel
 						</Button>
@@ -114,7 +115,7 @@ const Actions = ({ refreshData, primaryColumnName }: ActionsProps) => {
 							disabled={isSaving}
 							onClick={handleSave}
 							variant='ghost'
-							className='text-green-500'>
+							className='text-green-500 whitespace-nowrap'>
 							<CheckIcon />
 							Save
 						</Button>
@@ -128,6 +129,7 @@ const Actions = ({ refreshData, primaryColumnName }: ActionsProps) => {
 				<UploadCsvButton />
 
 				<SettingsButton />
+				</div>
 			</div>
 		</div>
 	)

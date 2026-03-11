@@ -12,9 +12,9 @@ const TableStructure = () => {
 	const columns = schema?.[activeTab?.table || ''] || []
 
 	return (
-		<div className='w-full p-6 min-h-screen overflow-auto transition-colors duration-300'>
-			<div className='w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d27] overflow-hidden shadow-sm dark:shadow-2xl transition-colors duration-300'>
-				<table className='w-full text-left border-collapse whitespace-nowrap'>
+		<div className='w-full p-3 sm:p-6 min-h-screen overflow-auto transition-colors duration-300'>
+			<div className='w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1d27] shadow-sm dark:shadow-2xl transition-colors duration-300 overflow-x-auto'>
+				<table className='min-w-[920px] w-full text-left border-collapse whitespace-nowrap'>
 					{/* Header */}
 					<thead className='text-[11px] font-bold tracking-wider text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-transparent'>
 						<tr>

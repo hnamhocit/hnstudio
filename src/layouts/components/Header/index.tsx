@@ -1,9 +1,13 @@
 'use client'
 
 import {
+	BookOpenIcon,
 	BellIcon,
+	CircleHelpIcon,
+	HeartIcon,
 	LogOutIcon,
 	MoonIcon,
+	PanelLeftIcon,
 	SettingsIcon,
 	SunIcon,
 	UserIcon,
@@ -35,7 +39,11 @@ import DataSourceSearch from './DataSourceSearch'
 
 const previewUnreadNotifications = 3
 
-const Header = () => {
+interface HeaderProps {
+	onToggleSidebar?: () => void
+}
+
+const Header = ({ onToggleSidebar }: HeaderProps) => {
 	const { user, setUser } = useUserStore()
 	const [isDarkMode, setIsDarkMode] = useState(false)
 	const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -133,6 +141,13 @@ const Header = () => {
 							Problems
 						</Link>
 					</motion.div>
+					<motion.div whileHover={{ y: -1 }}>
+						<Link
+							href='/donate'
+							className='px-2.5 py-1 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors'>
+							Donate
+						</Link>
+					</motion.div>
 				</div>
 			</motion.div>
 
@@ -141,6 +156,17 @@ const Header = () => {
 				animate={{ opacity: 1, x: 0 }}
 				transition={{ duration: 0.35, delay: 0.08 }}
 				className='flex items-center gap-3'>
+				<motion.div
+					whileTap={{ scale: 0.95 }}
+					className='md:hidden'>
+					<Button
+						size='icon'
+						variant='outline'
+						onClick={onToggleSidebar}>
+						<PanelLeftIcon />
+					</Button>
+				</motion.div>
+
 				<DataSourceSearch />
 
 				<motion.div whileTap={{ scale: 0.95 }}>
@@ -190,6 +216,31 @@ const Header = () => {
 							{user?.name || 'User'}
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							asChild
+							className='md:hidden'>
+							<Link href='/blog'>
+								<BookOpenIcon />
+								Blog
+							</Link>
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							asChild
+							className='md:hidden'>
+							<Link href='/problems'>
+								<CircleHelpIcon />
+								Problems
+							</Link>
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							asChild
+							className='md:hidden'>
+							<Link href='/donate'>
+								<HeartIcon />
+								Donate
+							</Link>
+						</DropdownMenuItem>
+						<DropdownMenuSeparator className='md:hidden' />
 
 						<DropdownMenuItem asChild>
 							<Link href={`/users/${user?.id || 'me'}`}>

@@ -13,10 +13,20 @@ const fadeUp = {
 	animate: { opacity: 1, y: 0 },
 }
 
+const formatDuration = (durationMs?: number) => {
+	if (!durationMs || durationMs <= 0) return '0ms'
+	if (durationMs >= 1000) return `${(durationMs / 1000).toFixed(1)}s`
+	if (durationMs >= 100) return `${Math.round(durationMs)}ms`
+	return `${durationMs.toFixed(1)}ms`
+}
+
 const QueryResultFooter = ({ result }: QueryResultFooterProps) => {
+	const affectedRows = result.affectedRows ?? result.rows?.length ?? 0
+	const durationLabel = formatDuration(result.durationMs)
+
 	return (
 		<motion.div
-			className='shrink-0 p-4 flex items-center justify-between border-t bg-neutral-50 dark:bg-neutral-900'
+			className='shrink-0 px-3 py-2 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t bg-neutral-50 dark:bg-neutral-900'
 			initial='initial'
 			animate='animate'
 			variants={{
@@ -41,22 +51,26 @@ const QueryResultFooter = ({ result }: QueryResultFooterProps) => {
 					/>
 				</motion.div>
 
-				<div className='text-sm text-neutral-600 dark:text-neutral-300'>
-					<span className='font-semibold'>{result.rows?.length}</span>{' '}
-					rows affected in{' '}
-					<span className='font-semibold'>
-						{result.durationMs?.toFixed(2)}
-					</span>{' '}
-					ms
+				<div className='text-xs sm:text-sm text-neutral-600 dark:text-neutral-300'>
+					<span className='font-semibold'>{affectedRows}</span>
+					<span className='sm:hidden'>
+						{' '}
+						rows • <span className='font-semibold'>{durationLabel}</span>
+					</span>
+					<span className='hidden sm:inline'>
+						{' '}
+						rows affected in{' '}
+						<span className='font-semibold'>{durationLabel}</span>
+					</span>
 				</div>
 			</motion.div>
 
 			<motion.div
-				className='flex items-center gap-4'
+				className='flex items-center gap-3 sm:gap-4'
 				variants={fadeUp}
 				transition={{ duration: 0.2, ease: 'easeOut', delay: 0.04 }}>
 				<motion.div
-					className='flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300'
+					className='flex items-center gap-2 text-xs sm:text-sm text-neutral-600 dark:text-neutral-300'
 					whileHover={{ scale: 1.02 }}
 					transition={{
 						type: 'spring',
@@ -64,13 +78,18 @@ const QueryResultFooter = ({ result }: QueryResultFooterProps) => {
 						damping: 22,
 					}}>
 					<HardDriveIcon size={16} />
-					<span>Memory: {formatDataSize(result.sizeBytes || 0)}</span>
+					<span className='sm:hidden'>
+						{formatDataSize(result.sizeBytes || 0)}
+					</span>
+					<span className='hidden sm:inline'>
+						Memory: {formatDataSize(result.sizeBytes || 0)}
+					</span>
 				</motion.div>
 
-				<div className='w-0.5 h-8 bg-neutral-600 dark:bg-neutral-700' />
+				<div className='w-px h-4 sm:h-8 bg-neutral-300 dark:bg-neutral-700' />
 
 				<motion.div
-					className='flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300'
+					className='flex items-center gap-2 text-xs sm:text-sm text-neutral-600 dark:text-neutral-300'
 					whileHover={{ scale: 1.02 }}
 					transition={{
 						type: 'spring',

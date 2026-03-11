@@ -49,7 +49,7 @@ const SelectionCell = ({
 						onCheckedChange={() =>
 							!isDeleted && toggleRowSelection(tablePath, rowId)
 						}
-						className='bg-white'
+						className='bg-background/70 dark:bg-input/40'
 					/>
 				</div>
 
@@ -57,7 +57,9 @@ const SelectionCell = ({
 				<span
 					className={clsx(
 						'text-right min-w-[1.2rem]',
-						isDeleted ? 'text-neutral-400' : 'text-neutral-500',
+						isDeleted ?
+							'text-neutral-400 dark:text-neutral-500'
+						:	'text-neutral-500 dark:text-neutral-300',
 					)}>
 					{index + 1}
 				</span>
