@@ -213,7 +213,7 @@ const DataSourceDialog = ({
 	const handleTestConnection = async () => {
 		if (isBlockedLocalHost) {
 			toast.error(
-				'Localhost is blocked. Use localtunnel host URL to continue.',
+				'Localhost is blocked. Use Pinggy host URL to continue.',
 				{ position: 'top-center' },
 			)
 			return
@@ -242,7 +242,7 @@ const DataSourceDialog = ({
 	const onSubmit: SubmitHandler<DataSourceFormData> = async (formData) => {
 		if (isBlockedLocalHost) {
 			toast.error(
-				'Cannot continue with localhost. Please use localtunnel host.',
+				'Cannot continue with localhost. Please use Pinggy tunnel host.',
 				{ position: 'top-center' },
 			)
 			return
@@ -496,35 +496,58 @@ const DataSourceDialog = ({
 													/>
 
 													<FieldLabel>Port</FieldLabel>
-													<Controller
-														control={control}
-														name='port'
-														render={({
-															field,
-														}) => (
-															<Input
-																{...field}
-																type='number'
-																placeholder='e.g. 5432'
-																className='max-w-24 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
-																value={
-																	field.value ||
-																	''
-																}
-																onChange={(e) =>
-																	field.onChange(
-																		parseInt(
-																			e
-																				.target
-																				.value,
-																			10,
-																		) ||
-																			undefined,
-																	)
-																}
-															/>
-														)}
-													/>
+														<Controller
+															control={control}
+															name='port'
+															render={({
+																field,
+															}) => (
+																<Input
+																	{...field}
+																	type='number'
+																	placeholder='e.g. 5432'
+																	className='max-w-24 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+																	value={
+																		typeof field.value ===
+																			'number' &&
+																		Number.isNaN(
+																			field.value,
+																		) ?
+																			''
+																		:	(field.value ??
+																			'')
+																	}
+																	onChange={(e) => {
+																		const nextValue =
+																			e.target
+																				.value
+																		if (
+																			nextValue ===
+																			''
+																		) {
+																			// Keep the field empty without falling back to default value.
+																			field.onChange(
+																				NaN,
+																			)
+																			return
+																		}
+
+																		const parsed =
+																			Number.parseInt(
+																				nextValue,
+																				10,
+																			)
+																		field.onChange(
+																			Number.isNaN(
+																				parsed,
+																			) ?
+																				NaN
+																			:	parsed,
+																		)
+																	}}
+																/>
+															)}
+														/>
 												</Field>
 												{isBlockedLocalHost && (
 													<div className='rounded-md border border-amber-400/40 bg-amber-50/70 dark:bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200'>
@@ -539,7 +562,7 @@ const DataSourceDialog = ({
 																When API runs on VPS,
 																`localhost` points to
 																the VPS itself. Please
-																use localtunnel host
+																use Pinggy tunnel host
 																to continue.
 															</div>
 														<div className='mt-2'>
@@ -557,7 +580,7 @@ const DataSourceDialog = ({
 																className='inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-100/80 dark:bg-amber-500/20 px-2 py-1 text-xs font-semibold text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-500/30 transition-colors'>
 																	How to connect
 																	localhost
-																	(localtunnel)
+																	(Pinggy)
 																	<ExternalLinkIcon
 																		size={12}
 																	/>
