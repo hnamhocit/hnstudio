@@ -5,155 +5,133 @@ echo "   Connect Your Local Database"
 echo "============================================"
 echo ""
 
-# Detect OS
-OS_TYPE=$(uname -s)
-
 # Function to check if port is in use
 check_port() {
     local port=$1
     if command -v ss &> /dev/null; then
-        # Linux - use ss
-        ss -tuln | grep -q ":$port "
+        ss -tuln 2>/dev/null | grep -q ":$port "
     elif command -v lsof &> /dev/null; then
-        # Mac - use lsof
-        lsof -i ":$port" -sTCP:LISTEN &> /dev/null
+        lsof -i ":$port" -sTCP:LISTEN &> /dev/null 2>&1
+    elif command -v netstat &> /dev/null; then
+        netstat -an 2>/dev/null | grep -q ":$port.*LISTEN"
     else
-        # Fallback - assume port is open
         return 0
     fi
 }
 
-# Auto-detect database
-echo "🔍 Detecting database..."
+# Detect available databases
+echo "🔍 Scanning for databases..."
 echo ""
 
-DB_TYPE=""
-DB_PORT=""
+DETECTED_DBS=()
 
-# Check common database ports
 if check_port 3306; then
-    echo "✅ MySQL/MariaDB detected on port 3306"
-    DB_TYPE="MySQL/MariaDB"
-    DB_PORT=3306
-elif check_port 5432; then
-    echo "✅ PostgreSQL detected on port 5432"
-    DB_TYPE="PostgreSQL"
-    DB_PORT=5432
-elif check_port 1433; then
-    echo "✅ SQL Server detected on port 1433"
-    DB_TYPE="SQL Server"
-    DB_PORT=1433
-elif check_port 27017; then
-    echo "✅ MongoDB detected on port 27017"
-    DB_TYPE="MongoDB"
-    DB_PORT=27017
-else
-    echo "⚠️  No database auto-detected"
-    echo ""
-    echo "Which database are you using?"
-    echo "1) MySQL/MariaDB (port 3306)"
-    echo "2) PostgreSQL (port 5432)"
-    echo "3) SQL Server (port 1433)"
-    echo "4) MongoDB (port 27017)"
-    echo "5) Custom port"
-    echo ""
-    read -p "Choice (1-5): " choice
+    echo "  ✅ Found database on port 3306 (MySQL/MariaDB)"
+    DETECTED_DBS+=("3306:MySQL/MariaDB")
+fi
 
-    case $choice in
-        1)
-            DB_TYPE="MySQL/MariaDB"
-            DB_PORT=3306
-            ;;
-        2)
-            DB_TYPE="PostgreSQL"
-            DB_PORT=5432
-            ;;
-        3)
-            DB_TYPE="SQL Server"
-            DB_PORT=1433
-            ;;
-        4)
-            DB_TYPE="MongoDB"
-            DB_PORT=27017
-            ;;
-        5)
-            read -p "Enter custom port: " DB_PORT
-            DB_TYPE="Custom"
-            ;;
-        *)
-            echo "Invalid choice!"
-            exit 1
-            ;;
-    esac
+if check_port 5432; then
+    echo "  ✅ Found database on port 5432 (PostgreSQL)"
+    DETECTED_DBS+=("5432:PostgreSQL")
+fi
+
+if check_port 1433; then
+    echo "  ✅ Found database on port 1433 (SQL Server)"
+    DETECTED_DBS+=("1433:SQL Server")
+fi
+
+if check_port 27017; then
+    echo "  ✅ Found database on port 27017 (MongoDB)"
+    DETECTED_DBS+=("27017:MongoDB")
 fi
 
 echo ""
-echo "📦 Database: $DB_TYPE"
+
+# Let user choose
+if [ ${#DETECTED_DBS[@]} -eq 0 ]; then
+    echo "⚠️  No database detected on common ports."
+    echo ""
+    echo "Please select your database type:"
+else
+    echo "📋 Multiple databases detected. Please select which one to expose:"
+    echo ""
+fi
+
+echo "1) MySQL/MariaDB (port 3306)"
+echo "2) PostgreSQL (port 5432)"
+echo "3) SQL Server (port 1433)"
+echo "4) MongoDB (port 27017)"
+echo "5) Custom port"
+echo ""
+read -p "Choice (1-5): " choice
+
+case $choice in
+    1)
+        DB_TYPE="MySQL/MariaDB"
+        DB_PORT=3306
+        ;;
+    2)
+        DB_TYPE="PostgreSQL"
+        DB_PORT=5432
+        ;;
+    3)
+        DB_TYPE="SQL Server"
+        DB_PORT=1433
+        ;;
+    4)
+        DB_TYPE="MongoDB"
+        DB_PORT=27017
+        ;;
+    5)
+        read -p "Enter port number: " DB_PORT
+        DB_TYPE="Custom"
+        ;;
+    *)
+        echo "❌ Invalid choice!"
+        exit 1
+        ;;
+esac
+
+echo ""
+echo "📦 Selected: $DB_TYPE"
 echo "🔌 Port: $DB_PORT"
 echo ""
 
-# Install ngrok if not exists
-if ! command -v ngrok &> /dev/null; then
-    echo "📦 Installing ngrok..."
+# Check if port is actually listening
+if ! check_port $DB_PORT; then
+    echo "⚠️  Warning: Nothing seems to be listening on port $DB_PORT"
+    echo "   Make sure your database is running!"
+    echo ""
+    read -p "Continue anyway? (y/n): " confirm
+    if [[ ! $confirm =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
 
+# Install Node.js if not exists (needed for localtunnel)
+if ! command -v node &> /dev/null; then
+    echo "📦 Installing Node.js..."
+
+    OS_TYPE=$(uname -s)
     if [[ "$OS_TYPE" == "Darwin" ]]; then
         # Mac
         if command -v brew &> /dev/null; then
-            brew install ngrok/ngrok/ngrok
+            brew install node
         else
-            echo "❌ Homebrew not found. Please install from: https://brew.sh"
-            echo "   Then run: brew install ngrok/ngrok/ngrok"
+            echo "❌ Please install Homebrew first: https://brew.sh"
             exit 1
         fi
     elif [[ "$OS_TYPE" == "Linux" ]]; then
         # Linux
-        curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | \
-          sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \
-          sudo tee /etc/apt/sources.list.d/ngrok.list
-        sudo apt update && sudo apt install ngrok -y
-    else
-        echo "❌ Unsupported OS. Please install ngrok manually from: https://ngrok.com/download"
-        exit 1
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt-get install -y nodejs
     fi
-else
-    echo "✅ ngrok already installed"
 fi
 
-# Check if already configured
-if ngrok config check &> /dev/null; then
-    echo "✅ ngrok already configured"
-else
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  🔑 One-time ngrok setup"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "1. Opening ngrok signup page..."
-    echo "   (If browser doesn't open, visit: https://dashboard.ngrok.com/signup)"
-    echo ""
-
-    # Try to open browser
-    if [[ "$OS_TYPE" == "Darwin" ]]; then
-        open "https://dashboard.ngrok.com/signup" 2>/dev/null
-    elif [[ "$OS_TYPE" == "Linux" ]]; then
-        xdg-open "https://dashboard.ngrok.com/signup" 2>/dev/null || true
-    fi
-
-    echo "2. After signup, copy your auth token from:"
-    echo "   https://dashboard.ngrok.com/get-started/your-authtoken"
-    echo ""
-    read -p "Paste your token here: " TOKEN
-
-    if [ -z "$TOKEN" ]; then
-        echo "❌ No token provided!"
-        exit 1
-    fi
-
-    ngrok config add-authtoken "$TOKEN"
-
-    echo ""
-    echo "✅ Configuration saved!"
+# Install localtunnel
+if ! command -v lt &> /dev/null; then
+    echo "📦 Installing localtunnel..."
+    sudo npm install -g localtunnel
 fi
 
 echo ""
@@ -162,10 +140,7 @@ echo "  🚀 Starting Tunnel..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "⚠️  IMPORTANT: Keep this terminal OPEN!"
-echo "   Closing it will stop the tunnel."
-echo ""
-echo "📋 Waiting for connection URL..."
 echo ""
 
-# Start ngrok
-ngrok tcp $DB_PORT
+# Start localtunnel
+lt --port $DB_PORT
